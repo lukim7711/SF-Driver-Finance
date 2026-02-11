@@ -1,0 +1,49 @@
+/**
+ * Konfigurasi Cloudflare Workers untuk SF Driver Finance
+ * Telegram Bot manajemen keuangan ShopeeFood Driver
+ */
+{
+  "name": "sf-driver-finance",
+  "main": "src/index.js",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Durable Objects binding
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "FINANCE_DO",
+        "class_name": "FinanceDurableObject"
+      }
+    ]
+  },
+
+  // Migrasi Durable Objects
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["FinanceDurableObject"]
+    }
+  ],
+
+  // Workers AI binding
+  "ai": {
+    "binding": "AI"
+  },
+
+  // Environment variables (secrets diset via wrangler secret)
+  // TELEGRAM_BOT_TOKEN → wrangler secret put TELEGRAM_BOT_TOKEN
+  // DEEPSEEK_API_KEY → wrangler secret put DEEPSEEK_API_KEY
+  // TELEGRAM_WEBHOOK_SECRET → wrangler secret put TELEGRAM_WEBHOOK_SECRET
+  "vars": {
+    "ENVIRONMENT": "production",
+    "BOT_NAME": "SF Driver Finance",
+    "WORKERS_AI_DAILY_LIMIT": "10000",
+    "WORKERS_AI_FALLBACK_THRESHOLD": "8000"
+  },
+
+  // Development settings
+  "dev": {
+    "port": 8787
+  }
+}

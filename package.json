@@ -1,0 +1,23 @@
+{
+  "name": "sf-driver-finance",
+  "version": "0.1.0",
+  "description": "Telegram Bot manajemen keuangan ShopeeFood Driver (Food & SPX) — Cloudflare Workers",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": [
+    "telegram-bot",
+    "cloudflare-workers",
+    "durable-objects",
+    "finance",
+    "shopeefood"
+  ],
+  "author": "lukim7711",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

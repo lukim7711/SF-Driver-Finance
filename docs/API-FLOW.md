@@ -176,9 +176,9 @@ Body (multipart/form-data):
 
 ### AI API Calls
 
-**Workers AI (Primary)**
+**Workers AI (Primary) — `@cf/qwen/qwen3-30b-a3b-fp8`**
 ```typescript
-const result = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+const result = await env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', {
   messages: [{ role: 'user', content: prompt }]
 });
 ```

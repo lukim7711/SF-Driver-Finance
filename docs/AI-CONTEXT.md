@@ -30,12 +30,23 @@ This is a **personal-use** application, not multi-tenant.
 |---|---|---|
 | Runtime | Cloudflare Workers (Free Tier) | 100K req/day, 10ms CPU |
 | Database | Durable Objects + SQLite | 1 DO per user, 5GB storage |
-| AI (Intent Detection) | Cloudflare Workers AI (primary) | 10K Neurons/day |
+| AI (Intent Detection) | Cloudflare Workers AI — `@cf/qwen/qwen3-30b-a3b-fp8` (primary) | 10K Neurons/day, ~4.4 Neurons/req |
 | AI (Fallback) | DeepSeek API | ~$0.12/month estimated |
 | OCR | **ocr.space API** (free tier) | NOT Workers AI vision model |
 | Bot Platform | Telegram Bot API | Webhook mode |
 | Language | **TypeScript** | Wrangler handles compilation natively |
 | CI/CD | GitHub Actions | Type check on push, auto-deploy on merge to main |
+
+### Important: AI Model Choice
+
+**Primary model**: `@cf/qwen/qwen3-30b-a3b-fp8` — a MoE (Mixture of Experts) model with 30B total parameters but only 3B active per request. This means:
+- Costs only ~4.4 Neurons per request (same as a 3B model)
+- Quality comparable to a 30B model
+- Strong multilingual support including Indonesian (Qwen is trained on Asian language data)
+- Supports function calling for structured JSON output
+- **~2,254 free requests/day** (vs 658 with the previous llama-3.1-8b-instruct)
+
+**Why not `llama-3.1-8b-instruct`?** It costs ~15.2 Neurons/req — **3.4× more expensive** for similar or worse intent detection quality, especially for Indonesian natural language.
 
 ### Important: OCR Decision
 

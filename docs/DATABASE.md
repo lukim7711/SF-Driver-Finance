@@ -7,13 +7,64 @@ Database uses **SQLite** inside **Durable Objects**. Each user (Telegram user ID
 ```
 Durable Object (per user)
 └── SQLite Database
-    ├── users          (user profile & preferences)
-    ├── income         (delivery order earnings)
-    ├── expenses       (operational & household costs)
-    ├── loans          (online lending platform info)
-    ├── installments   (per-month payment schedule)
-    └── targets        (income targets per period)
+    ├── _schema_meta    (schema version tracking)
+    ├── users           (user profile & preferences)
+    ├── income          (delivery order earnings)
+    ├── expenses        (operational & household costs)
+    ├── loans           (online lending platform info)
+    ├── installments    (per-month payment schedule)
+    └── targets         (income targets per period)
 ```
+
+## Schema Versioning
+
+To handle database migrations safely across deployments, a `_schema_meta` table tracks the current schema version. This ensures that when new columns, tables, or constraints are added in future updates, each user's Durable Object database is migrated automatically on first access.
+
+```sql
+CREATE TABLE IF NOT EXISTS _schema_meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+```
+
+### Migration Mechanism
+
+On every Durable Object initialization:
+
+```typescript
+const LATEST_SCHEMA_VERSION = 1;
+
+function initializeDatabase(db: SqlStorage): void {
+  // Ensure meta table exists
+  db.exec(`CREATE TABLE IF NOT EXISTS _schema_meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )`);
+
+  // Check current version
+  const row = db.exec("SELECT value FROM _schema_meta WHERE key = 'schema_version'").one();
+  const currentVersion = row ? parseInt(row.value as string, 10) : 0;
+
+  if (currentVersion === 0) {
+    // Fresh install — create all tables, set version
+    createAllTables(db);
+    db.exec("INSERT INTO _schema_meta (key, value) VALUES ('schema_version', ?)", LATEST_SCHEMA_VERSION.toString());
+  } else if (currentVersion < LATEST_SCHEMA_VERSION) {
+    // Incremental migration
+    if (currentVersion < 2) migrateV1toV2(db);
+    if (currentVersion < 3) migrateV2toV3(db);
+    // ... add future migrations here
+    db.exec("UPDATE _schema_meta SET value = ? WHERE key = 'schema_version'", LATEST_SCHEMA_VERSION.toString());
+  }
+  // else: already up to date, do nothing
+}
+```
+
+### Why This Matters
+
+- **Without versioning**: Deploying code that expects a new column (e.g., `currency` in income) would crash because the column doesn't exist in existing user databases.
+- **With versioning**: Migration runs automatically per-user on first access after deployment. No manual intervention needed.
+- **Each user migrates independently**: Since each user has their own DO, migrations happen lazily — only when the user sends a message after a new deployment.
 
 ## Table: users
 
@@ -248,6 +299,6 @@ CREATE INDEX idx_targets_dates ON targets(start_date, end_date);
 2. **All amounts** in Rupiah (REAL type).
 3. **Indexes** on frequently queried columns (date, category, status, due_date).
 4. **1 DO per user** = no `user_id` column needed — all data in one DO belongs to one user.
-5. **Schema migration** handled manually on first Durable Object access.
+5. **Schema migration** handled automatically via `_schema_meta` versioning table. See "Schema Versioning" section above.
 6. **Loans + Installments** use a parent-child relationship. When a loan is registered, all installment rows are pre-generated.
 7. **CASCADE delete** — deleting a loan removes all its installments.

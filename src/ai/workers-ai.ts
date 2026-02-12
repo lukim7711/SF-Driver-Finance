@@ -11,9 +11,49 @@ import { parseIntentResponse } from "./parser";
 /** The primary AI model — MoE with 30B total params, 3B active (~4.4 Neurons/req) */
 const PRIMARY_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8";
 
-/** Workers AI text generation response shape */
-interface AiTextGenerationResponse {
+/** OpenAI-compatible chat completion response (used by newer models like Qwen3) */
+interface ChatCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+}
+
+/** Simple Workers AI text generation response (used by older models) */
+interface SimpleAiResponse {
   response?: string;
+}
+
+/** Union of possible response formats */
+type WorkersAIResponse = ChatCompletionResponse | SimpleAiResponse | string;
+
+/**
+ * Extract text content from a Workers AI response.
+ * Handles both OpenAI chat completion format and simple response format.
+ */
+function extractResponseText(response: WorkersAIResponse): string {
+  // String response
+  if (typeof response === "string") {
+    return response;
+  }
+
+  if (response && typeof response === "object") {
+    // OpenAI chat completion format: { choices: [{ message: { content: "..." } }] }
+    if ("choices" in response && Array.isArray(response.choices) && response.choices.length > 0) {
+      const content = response.choices[0]?.message?.content;
+      if (content) return content;
+    }
+
+    // Simple format: { response: "..." }
+    if ("response" in response) {
+      const simple = response as SimpleAiResponse;
+      if (simple.response) return simple.response;
+    }
+  }
+
+  console.error("Could not extract text from Workers AI response:", JSON.stringify(response).slice(0, 500));
+  return "";
 }
 
 /**
@@ -41,18 +81,9 @@ export async function detectIntentWorkersAI(
         content: prompt,
       },
     ],
-  }) as AiTextGenerationResponse | string;
+  }) as WorkersAIResponse;
 
-  // Extract text from response
-  let responseText: string;
-  if (typeof response === "string") {
-    responseText = response;
-  } else if (response && typeof response === "object" && "response" in response) {
-    responseText = response.response ?? "";
-  } else {
-    console.error("Unexpected Workers AI response format:", JSON.stringify(response));
-    responseText = "";
-  }
+  const responseText = extractResponseText(response);
 
   if (!responseText) {
     throw new Error("Workers AI returned empty response");

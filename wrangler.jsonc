@@ -32,10 +32,10 @@
   },
 
   // Environment variables (secrets set via wrangler secret)
-  // TELEGRAM_BOT_TOKEN    → wrangler secret put TELEGRAM_BOT_TOKEN
-  // TELEGRAM_WEBHOOK_SECRET → wrangler secret put TELEGRAM_WEBHOOK_SECRET
-  // DEEPSEEK_API_KEY      → wrangler secret put DEEPSEEK_API_KEY
-  // OCR_SPACE_API_KEY     → wrangler secret put OCR_SPACE_API_KEY
+  // TELEGRAM_BOT_TOKEN       → wrangler secret put TELEGRAM_BOT_TOKEN
+  // TELEGRAM_WEBHOOK_SECRET  → wrangler secret put TELEGRAM_WEBHOOK_SECRET
+  // DEEPSEEK_API_KEY         → wrangler secret put DEEPSEEK_API_KEY
+  // OCR_SPACE_API_KEY        → wrangler secret put OCR_SPACE_API_KEY
   "vars": {
     "ENVIRONMENT": "production",
     "BOT_NAME": "SF Driver Finance",

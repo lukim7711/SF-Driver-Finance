@@ -6,7 +6,7 @@
 import type { LoanRegistrationData, LateFeeType } from "../types/loan";
 import { sendText, sendWithKeyboard } from "../telegram/api";
 import { setConversationState, getConversationState, clearConversationState } from "../database/conversation";
-import { registerLoan, getLoans } from "../database/loan";
+import { registerLoan } from "../database/loan";
 import { formatRupiah } from "./income";
 
 /**
@@ -18,12 +18,11 @@ export async function startLoanRegistration(
   chatId: number,
   db: SqlStorage
 ): Promise<void> {
-  const text = `🏦 <b>Daftar Pinjaman Baru</b>\n\n` +
+  const text = `\ud83c\udfe6 <b>Daftar Pinjaman Baru</b>\n\n` +
     `Aku akan bantu kamu mencatat pinjaman baru. Proses ini ada 7 langkah.\n\n` +
     `<b>Langkah 1/7: Nama Platform</b>\n` +
     `Ketik nama platform pinjaman (contoh: Shopee Pinjam, Kredivo, SPayLater, SeaBank):`;
 
-  // Initialize conversation state
   setConversationState(db, "register_loan_step", {
     step: 1,
     platform: "",
@@ -53,7 +52,7 @@ export async function handleLoanRegistrationStep(
 ): Promise<void> {
   const state = getConversationState(db);
   if (!state || state.pending_action !== "register_loan_step") {
-    await sendText(token, chatId, "⚠️ Sesi pendaftaran pinjaman tidak ditemukan. Ketik /batal untuk membatalkan.");
+    await sendText(token, chatId, "\u26a0\ufe0f Sesi pendaftaran pinjaman tidak ditemukan. Ketik /batal untuk membatalkan.");
     return;
   }
 
@@ -80,10 +79,10 @@ export async function handleLoanRegistrationStep(
       await handleStep6(token, chatId, db, userMessage, data);
       break;
     case 7:
-      await handleStep7(token, chatId, db, userMessage, data, todayDate);
+      await handleStep7(token, chatId, db, userMessage);
       break;
     default:
-      await sendText(token, chatId, "❌ Step tidak valid. Ketik /batal untuk membatalkan.");
+      await sendText(token, chatId, "\u274c Step tidak valid. Ketik /batal untuk membatalkan.");
       clearConversationState(db);
   }
 }
@@ -100,7 +99,7 @@ async function handleStep1(
   data.step = 2;
   setConversationState(db, "register_loan_step", data);
 
-  const text = `✅ Platform: <b>${data.platform}</b>\n\n` +
+  const text = `\u2705 Platform: <b>${data.platform}</b>\n\n` +
     `<b>Langkah 2/7: Jumlah Pinjaman Awal</b>\n` +
     `Berapa jumlah uang yang kamu pinjam (pokok/principal)? Contoh: 3500000`;
 
@@ -117,7 +116,7 @@ async function handleStep2(
 ): Promise<void> {
   const amount = parseAmount(userMessage);
   if (!amount || amount <= 0) {
-    await sendText(token, chatId, "❌ Jumlah tidak valid. Coba lagi dengan angka, contoh: 3500000");
+    await sendText(token, chatId, "\u274c Jumlah tidak valid. Coba lagi dengan angka, contoh: 3500000");
     return;
   }
 
@@ -125,7 +124,7 @@ async function handleStep2(
   data.step = 3;
   setConversationState(db, "register_loan_step", data);
 
-  const text = `✅ Jumlah pinjaman: <b>${formatRupiah(amount)}</b>\n\n` +
+  const text = `\u2705 Jumlah pinjaman: <b>${formatRupiah(amount)}</b>\n\n` +
     `<b>Langkah 3/7: Total Harus Dibayar</b>\n` +
     `Berapa total yang harus kamu bayar (termasuk bunga)? Contoh: 4904446`;
 
@@ -142,7 +141,7 @@ async function handleStep3(
 ): Promise<void> {
   const amount = parseAmount(userMessage);
   if (!amount || amount <= 0) {
-    await sendText(token, chatId, "❌ Jumlah tidak valid. Coba lagi dengan angka, contoh: 4904446");
+    await sendText(token, chatId, "\u274c Jumlah tidak valid. Coba lagi dengan angka, contoh: 4904446");
     return;
   }
 
@@ -150,8 +149,8 @@ async function handleStep3(
   data.step = 4;
   setConversationState(db, "register_loan_step", data);
 
-  const text = `✅ Total bayar: <b>${formatRupiah(amount)}</b>\n` +
-    `💡 Bunga: <b>${formatRupiah(amount - data.original_amount)}</b>\n\n` +
+  const text = `\u2705 Total bayar: <b>${formatRupiah(amount)}</b>\n` +
+    `\ud83d\udca1 Bunga: <b>${formatRupiah(amount - data.original_amount)}</b>\n\n` +
     `<b>Langkah 4/7: Jumlah Cicilan</b>\n` +
     `Berapa kali cicilan? Contoh: 10`;
 
@@ -168,7 +167,7 @@ async function handleStep4(
 ): Promise<void> {
   const count = parseInt(userMessage.trim(), 10);
   if (isNaN(count) || count <= 0) {
-    await sendText(token, chatId, "❌ Jumlah cicilan tidak valid. Coba lagi dengan angka, contoh: 10");
+    await sendText(token, chatId, "\u274c Jumlah cicilan tidak valid. Coba lagi dengan angka, contoh: 10");
     return;
   }
 
@@ -176,7 +175,7 @@ async function handleStep4(
   data.step = 5;
   setConversationState(db, "register_loan_step", data);
 
-  const text = `✅ Jumlah cicilan: <b>${count}x</b>\n\n` +
+  const text = `\u2705 Jumlah cicilan: <b>${count}x</b>\n\n` +
     `<b>Langkah 5/7: Cicilan Bulanan</b>\n` +
     `Berapa cicilan per bulan? Contoh: 435917`;
 
@@ -193,7 +192,7 @@ async function handleStep5(
 ): Promise<void> {
   const amount = parseAmount(userMessage);
   if (!amount || amount <= 0) {
-    await sendText(token, chatId, "❌ Jumlah tidak valid. Coba lagi dengan angka, contoh: 435917");
+    await sendText(token, chatId, "\u274c Jumlah tidak valid. Coba lagi dengan angka, contoh: 435917");
     return;
   }
 
@@ -201,7 +200,7 @@ async function handleStep5(
   data.step = 6;
   setConversationState(db, "register_loan_step", data);
 
-  const text = `✅ Cicilan bulanan: <b>${formatRupiah(amount)}/bulan</b>\n\n` +
+  const text = `\u2705 Cicilan bulanan: <b>${formatRupiah(amount)}/bulan</b>\n\n` +
     `<b>Langkah 6/7: Tanggal Jatuh Tempo</b>\n` +
     `Tanggal berapa setiap bulan cicilan harus dibayar? (1-31)\n` +
     `Contoh: 13`;
@@ -219,7 +218,7 @@ async function handleStep6(
 ): Promise<void> {
   const day = parseInt(userMessage.trim(), 10);
   if (isNaN(day) || day < 1 || day > 31) {
-    await sendText(token, chatId, "❌ Tanggal tidak valid. Masukkan angka 1-31, contoh: 13");
+    await sendText(token, chatId, "\u274c Tanggal tidak valid. Masukkan angka 1-31, contoh: 13");
     return;
   }
 
@@ -227,43 +226,39 @@ async function handleStep6(
   data.step = 7;
   setConversationState(db, "register_loan_step", data);
 
-  const text = `✅ Jatuh tempo: <b>Tanggal ${day} setiap bulan</b>\n\n` +
+  const text = `\u2705 Jatuh tempo: <b>Tanggal ${day} setiap bulan</b>\n\n` +
     `<b>Langkah 7/7: Denda Keterlambatan</b>\n` +
     `Pilih jenis denda:`;
 
   await sendWithKeyboard(token, chatId, text, {
     inline_keyboard: [
       [
-        { text: "📊 Persen per bulan (5%/bln)", callback_data: "loan_late_fee:percent_monthly" },
+        { text: "\ud83d\udcca Persen per bulan (5%/bln)", callback_data: "loan_late_fee:percent_monthly" },
       ],
       [
-        { text: "📅 Persen per hari (0.25%/hari)", callback_data: "loan_late_fee:percent_daily" },
+        { text: "\ud83d\udcc5 Persen per hari (0.25%/hari)", callback_data: "loan_late_fee:percent_daily" },
       ],
       [
-        { text: "💵 Nominal tetap", callback_data: "loan_late_fee:fixed" },
+        { text: "\ud83d\udcb5 Nominal tetap", callback_data: "loan_late_fee:fixed" },
       ],
       [
-        { text: "✅ Tidak ada denda", callback_data: "loan_late_fee:none" },
+        { text: "\u2705 Tidak ada denda", callback_data: "loan_late_fee:none" },
       ],
     ],
   });
 }
 
-/** Step 7: Late fee type (handled via callback query) */
+/** Step 7: Prompt user to use buttons */
 async function handleStep7(
   token: string,
   chatId: number,
   db: SqlStorage,
-  userMessage: string,
-  data: LoanRegistrationData,
-  todayDate: string
+  userMessage: string
 ): Promise<void> {
-  // This step is handled by callback query in finance-do.ts
-  // If user types instead of clicking, prompt them to use buttons
   await sendText(
     token,
     chatId,
-    "⏳ Gunakan tombol di atas untuk memilih jenis denda, atau ketik /batal untuk membatalkan."
+    "\u23f3 Gunakan tombol di atas untuk memilih jenis denda, atau ketik /batal untuk membatalkan."
   );
 }
 
@@ -279,7 +274,7 @@ export async function handleLateFeeTypeSelection(
 ): Promise<void> {
   const state = getConversationState(db);
   if (!state || state.pending_action !== "register_loan_step") {
-    await sendText(token, chatId, "⚠️ Sesi pendaftaran pinjaman tidak ditemukan.");
+    await sendText(token, chatId, "\u26a0\ufe0f Sesi pendaftaran pinjaman tidak ditemukan.");
     return;
   }
 
@@ -290,7 +285,6 @@ export async function handleLateFeeTypeSelection(
     data.late_fee_value = 0;
     await finalizeLoanRegistration(token, chatId, db, data);
   } else {
-    // Ask for late fee value
     setConversationState(db, "register_loan_step", { ...data, step: 8 });
 
     let prompt = "";
@@ -302,7 +296,7 @@ export async function handleLateFeeTypeSelection(
       prompt = "Berapa nominal denda tetap? Contoh: 50000";
     }
 
-    const text = `✅ Jenis denda: <b>${formatLateFeeType(lateFeeType)}</b>\n\n` +
+    const text = `\u2705 Jenis denda: <b>${formatLateFeeType(lateFeeType)}</b>\n\n` +
       `<b>Nilai Denda</b>\n${prompt}`;
 
     await sendText(token, chatId, text);
@@ -321,7 +315,7 @@ export async function handleLateFeeValue(
 ): Promise<void> {
   const state = getConversationState(db);
   if (!state || state.pending_action !== "register_loan_step") {
-    await sendText(token, chatId, "⚠️ Sesi pendaftaran pinjaman tidak ditemukan.");
+    await sendText(token, chatId, "\u26a0\ufe0f Sesi pendaftaran pinjaman tidak ditemukan.");
     return;
   }
 
@@ -329,7 +323,7 @@ export async function handleLateFeeValue(
   const value = parseFloat(userMessage.trim());
 
   if (isNaN(value) || value < 0) {
-    await sendText(token, chatId, "❌ Nilai tidak valid. Coba lagi dengan angka, contoh: 5 atau 0.25");
+    await sendText(token, chatId, "\u274c Nilai tidak valid. Coba lagi dengan angka, contoh: 5 atau 0.25");
     return;
   }
 
@@ -347,29 +341,24 @@ async function finalizeLoanRegistration(
   data: LoanRegistrationData,
   todayDate?: string
 ): Promise<void> {
-  // Use today as start_date
   data.start_date = todayDate ?? new Date().toISOString().split("T")[0]!;
 
-  // Save to database
   const loanId = registerLoan(db, data);
 
-  // Clear conversation state
   clearConversationState(db);
 
-  // Calculate some stats
   const interest = data.total_with_interest - data.original_amount;
   const interestRate = ((interest / data.original_amount) * 100).toFixed(1);
 
-  // Show confirmation
-  const text = `✅ <b>Pinjaman Berhasil Didaftarkan!</b>\n\n` +
-    `🏦 Platform: <b>${data.platform}</b>\n` +
-    `💰 Pinjaman: ${formatRupiah(data.original_amount)}\n` +
-    `💸 Total bayar: ${formatRupiah(data.total_with_interest)}\n` +
-    `📈 Bunga: ${formatRupiah(interest)} (${interestRate}%)\n` +
-    `🔢 Cicilan: ${data.total_installments}x × ${formatRupiah(data.monthly_amount)}/bulan\n` +
-    `📅 Jatuh tempo: Tanggal ${data.due_day}\n` +
-    `⚠️ Denda: ${formatLateFeeType(data.late_fee_type)}${data.late_fee_value > 0 ? ` (${data.late_fee_value}${data.late_fee_type.includes("percent") ? "%" : ""})` : ""}\n\n` +
-    `📊 Semua cicilan sudah otomatis terjadwal. Ketik "lihat hutang" untuk melihat detail.`;
+  const text = `\u2705 <b>Pinjaman Berhasil Didaftarkan!</b>\n\n` +
+    `\ud83c\udfe6 Platform: <b>${data.platform}</b>\n` +
+    `\ud83d\udcb0 Pinjaman: ${formatRupiah(data.original_amount)}\n` +
+    `\ud83d\udcb8 Total bayar: ${formatRupiah(data.total_with_interest)}\n` +
+    `\ud83d\udcc8 Bunga: ${formatRupiah(interest)} (${interestRate}%)\n` +
+    `\ud83d\udd22 Cicilan: ${data.total_installments}x \u00d7 ${formatRupiah(data.monthly_amount)}/bulan\n` +
+    `\ud83d\udcc5 Jatuh tempo: Tanggal ${data.due_day}\n` +
+    `\u26a0\ufe0f Denda: ${formatLateFeeType(data.late_fee_type)}${data.late_fee_value > 0 ? ` (${data.late_fee_value}${data.late_fee_type.includes("percent") ? "%" : ""})` : ""}\n\n` +
+    `\ud83d\udcca Semua cicilan sudah otomatis terjadwal. Ketik "lihat hutang" untuk melihat detail.`;
 
   await sendText(token, chatId, text);
 }
@@ -381,17 +370,14 @@ async function finalizeLoanRegistration(
 function parseAmount(input: string): number | null {
   const cleaned = input.trim().toLowerCase().replace(/[,\s]/g, "");
 
-  // Direct number
   if (/^\d+$/.test(cleaned)) {
     return parseInt(cleaned, 10);
   }
 
-  // Number with thousand separator dots: "3.500.000"
   if (/^\d+(\.\d{3})+$/.test(cleaned)) {
     return parseInt(cleaned.replace(/\./g, ""), 10);
   }
 
-  // Indonesian shorthand: 3.5jt, 3jt, 500rb
   const jtMatch = cleaned.match(/^([\d.]+)(?:jt|juta)$/);
   if (jtMatch) {
     return Math.round(parseFloat(jtMatch[1]!) * 1_000_000);
@@ -402,7 +388,6 @@ function parseAmount(input: string): number | null {
     return Math.round(parseFloat(rbMatch[1]!) * 1_000);
   }
 
-  // English shorthand: 3.5m, 500k
   const mMatch = cleaned.match(/^([\d.]+)m$/);
   if (mMatch) {
     return Math.round(parseFloat(mMatch[1]!) * 1_000_000);

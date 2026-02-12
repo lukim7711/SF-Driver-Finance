@@ -49,7 +49,7 @@ function getTodayDate(): string {
 }
 
 /**
- * FinanceDurableObject — per-user data storage and message handling.
+ * FinanceDurableObject \u2014 per-user data storage and message handling.
  */
 export class FinanceDurableObject implements DurableObject {
   private state: DurableObjectState;
@@ -73,7 +73,7 @@ export class FinanceDurableObject implements DurableObject {
   }
 
   /**
-   * Main fetch handler — receives routed requests from the Worker.
+   * Main fetch handler \u2014 receives routed requests from the Worker.
    */
   async fetch(request: Request): Promise<Response> {
     try {
@@ -97,7 +97,7 @@ export class FinanceDurableObject implements DurableObject {
 
   /**
    * Handle an incoming text/photo message from the user.
-   * Flow: Command → Cancel → Conversation State → AI Intent Detection → Route
+   * Flow: Command \u2192 Cancel \u2192 Conversation State \u2192 AI Intent Detection \u2192 Route
    */
   private async handleMessage(message: TelegramMessage): Promise<void> {
     const chatId = message.chat.id;

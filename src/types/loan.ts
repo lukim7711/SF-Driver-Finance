@@ -12,8 +12,13 @@ export type LoanStatus = "active" | "paid_off" | "cancelled";
 /** Installment payment status */
 export type InstallmentStatus = "unpaid" | "paid" | "late" | "partial";
 
-/** Loan registration data collected via multi-step flow */
+/**
+ * Loan registration data collected via multi-step flow.
+ * Uses index signature to be compatible with Record<string, unknown>
+ * required by conversation state storage.
+ */
 export interface LoanRegistrationData {
+  [key: string]: unknown;
   platform: string;
   original_amount: number;
   total_with_interest: number;
@@ -23,10 +28,8 @@ export interface LoanRegistrationData {
   late_fee_type: LateFeeType;
   late_fee_value: number;
   note?: string;
-  start_date: string; // YYYY-MM-DD
-  
-  // Multi-step flow tracking
-  step?: number; // Current step (1-7)
+  start_date: string;
+  step?: number;
 }
 
 /** Database row for loans table */

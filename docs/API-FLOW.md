@@ -25,7 +25,21 @@ User sends message in Telegram
              │
              ▼
 ┌─────────────────────────┐
-│ 3. Worker: Check AI     │
+│ 3. Worker: Check        │
+│    Conversation State   │
+│    - Read pending_action │
+│      from Durable Object│
+│    - Has active state?  │
+│      → Handle by context │
+│        (skip AI, save   │
+│         Neurons)        │
+│    - No state or expired?│
+│      → Continue to AI   │
+└────────────┬────────────┘
+             │
+             ▼
+┌─────────────────────────┐
+│ 4. Worker: Check AI     │
 │    Usage                │
 │    - Read Neuron counter│
 │    - < 8000 Neurons?    │
@@ -36,7 +50,7 @@ User sends message in Telegram
              │
              ▼
 ┌─────────────────────────┐
-│ 4. AI: Intent Detection │
+│ 5. AI: Intent Detection │
 │    Input: user message  │
 │    Output:              │
 │    - intent (string)    │
@@ -46,7 +60,7 @@ User sends message in Telegram
              │
              ▼
 ┌─────────────────────────┐
-│ 5. Worker: Route Intent │
+│ 6. Worker: Route Intent │
 │    Switch based on      │
 │    detected intent      │
 │    → appropriate handler│
@@ -54,7 +68,7 @@ User sends message in Telegram
              │
              ▼
 ┌─────────────────────────┐
-│ 6. Durable Object       │
+│ 7. Durable Object       │
 │    - Get DO by user ID  │
 │    - Execute SQL query  │
 │    - Return result      │
@@ -62,7 +76,7 @@ User sends message in Telegram
              │
              ▼
 ┌─────────────────────────┐
-│ 7. Worker: Format       │
+│ 8. Worker: Format       │
 │    Response             │
 │    - Format text in     │
 │      Indonesian         │
@@ -117,12 +131,18 @@ User sends photo/image
 │      to user            │
 │    - Ask confirmation:  │
 │      "Benar? (Ya/Tidak)"│
+│    - Store pending_action│
+│      = 'confirm_ocr' in │
+│      Durable Object     │
 └────────────┬────────────┘
              │
              ▼
 ┌─────────────────────────┐
 │ 5. User confirms "Ya"   │
+│    → Handled by convo   │
+│      state (no AI call) │
 │    → Save to DB         │
+│    → Clear pending_action│
 │    → Send confirmation  │
 └─────────────────────────┘
 ```
@@ -130,6 +150,8 @@ User sends photo/image
 **Key difference from previous design**: OCR is now a 2-step process:
 1. **ocr.space** extracts raw text from image (free, no Neurons)
 2. **Workers AI / DeepSeek** parses the text into structured data (uses Neurons, but lighter than vision model)
+
+**OCR confirmation** uses conversation state (`pending_action: confirm_ocr`), so the user's "Ya"/"Tidak" reply is handled without calling AI.
 
 ## Endpoint Details
 
@@ -146,6 +168,7 @@ Body: Telegram Update object (JSON)
 | Method | Purpose |
 |---|---|
 | `sendMessage` | Send text response to user |
+| `editMessageText` | Update previous bot message (e.g., after confirmation) |
 | `getFile` | Download photo sent by user |
 | `setWebhook` | Setup webhook URL (on deploy) |
 | `deleteWebhook` | Remove webhook (maintenance) |
@@ -267,3 +290,4 @@ Respond in JSON:
 | ocr.space API error | Show "OCR gagal, coba kirim ulang" message |
 | DB error | Log error, send "coba lagi nanti" message |
 | Telegram API error | Retry 1x, then log and skip |
+| Conversation state expired | Treat as fresh message, send to AI |

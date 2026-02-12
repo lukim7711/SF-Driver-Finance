@@ -36,6 +36,7 @@ Track multiple online lending platform (pinjol) installments with schedules, due
 - Example: "tambah hutang Shopee Pinjam, total 4.9jt, cicilan 435rb, 10x, jatuh tempo tanggal 13, denda 5% per bulan"
 - Action: create loan record + auto-generate all installment rows
 - Support: already-paid installments (for loans taken before bot was created)
+- Note: In Phase 1-3, loan registration uses multi-step chat with conversation state. In Phase 4, a Mini App form will be available for faster input.
 
 **F03b — Record Installment Payment**
 - Input: platform name + confirmation of payment
@@ -93,13 +94,17 @@ Extract financial data from images/screenshots automatically via **ocr.space API
 - Process: Download image from Telegram → send to ocr.space API → extract text → AI parses data → confirm with user
 - Output: detected data + confirmation before saving
 - Important: ALWAYS ask user confirmation before saving OCR results
+- Confirmation uses **conversation state** (`pending_action: confirm_ocr`) — user reply "Ya"/"Tidak" is handled without AI, saving Neurons
 - API: ocr.space free tier (NOT Workers AI vision model)
+- Note: In Phase 4, a Mini App will enable bulk review of screenshots with multiple items (e.g., 8+ orders in one screenshot)
 
 ### 📋 F06 — Intent Detection
 
 Detect user intent from natural language messages.
 
 - AI processes message → determines intent + extracts parameters
+- Model: `@cf/qwen/qwen3-30b-a3b-fp8` (primary), DeepSeek (fallback)
+- **Conversation state is checked first** — if a pending_action exists, the message is routed to the state handler without consuming AI Neurons
 - Supported intents:
   - `record_income` — record delivery earnings
   - `record_expense` — record an expense
@@ -151,13 +156,14 @@ Automatically switch to DeepSeek API when Workers AI approaches daily limit.
 - `/help` — usage guide
 - `/laporan` — shortcut for today's report
 - `/hutang` — shortcut for loan dashboard
+- `/batal` — cancel current multi-step flow (clears conversation state)
 - `/reset` — reset data (with double confirmation)
 
 ---
 
 ## Future Roadmap
 
-### 📋 F11 — Export Data
+### 📋 F11 — Export Data (Phase 4)
 - Export to CSV
 - Send via Telegram as file
 
@@ -170,3 +176,10 @@ Automatically switch to DeepSeek API when Workers AI approaches daily limit.
 - Expense trends over time
 - Savings recommendations
 - Period-over-period comparison
+
+### 📋 F14 — Telegram Mini App (Phase 4)
+- Full HTML/CSS/JS UI inside Telegram for bulk operations
+- Bulk OCR review: table with checkboxes, edit values, submit all at once
+- Loan registration form: all fields in one screen instead of multi-step chat
+- Hosted on Cloudflare Workers/Pages (free)
+- Replaces chat-based multi-step for complex data entry

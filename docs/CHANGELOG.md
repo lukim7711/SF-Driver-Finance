@@ -6,6 +6,23 @@ Format: `[Date] — Description`
 
 ---
 
+## 2026-02-12 — Post-Discussion Updates (Session #8)
+
+### Revised
+
+- `docs/AI-CONTEXT.md` — Tech stack: specified `@cf/qwen/qwen3-30b-a3b-fp8` as primary AI model. Added "AI Model Choice" section explaining MoE architecture and why it's 3.4× cheaper.
+- `docs/LIMITS.md` — Complete recalculation: ~4.4 Neurons/req (was ~100-300). Daily budget table rewritten — 10 users now fit in free tier. Model comparison table added.
+- `docs/API-FLOW.md` — Workers AI code example updated to `qwen3-30b-a3b-fp8`. Added conversation state check step to main flow diagram.
+- `docs/DATABASE.md` — Added `_schema_meta` table for schema versioning. Added "Schema Versioning" section with migration mechanism and TypeScript code example. Updated data architecture diagram and important notes.
+- `docs/ARCHITECTURE.md` — Added "Conversation State" section with flow diagram, TypeScript interface, pending_action table, and key rules. Added "Future: Mini App (Phase 4)" section. Updated system components, AI model references, and architecture patterns.
+- `docs/PROGRESS.md` — Session #8 logged. Phase plan updated: Phase 1 includes conversation state infra, Phase 4 includes F11 Export + Mini App. Next steps updated.
+- `docs/DECISIONS.md` — Added Decisions #14–#17: AI model change, schema versioning, conversation state, hybrid Mini App.
+- `docs/FEATURES.md` — F05 OCR updated with conversation state note. Mini App added to Future Roadmap.
+- `docs/CHANGELOG.md` — This entry.
+- `README.md` — Updated tech stack (AI model name), database table count (7), decisions count (17).
+
+---
+
 ## 2026-02-12 — Consistency Audit & Fixes (Session #7)
 
 ### Added

@@ -193,3 +193,65 @@ This document records important design decisions and their rationale.
 - Code quality is ensured by TypeScript strict mode, CI type checks, and AI code reviews — not by limiting patterns.
 
 **Trade-off**: Code may be harder to read for a human, but since the developer relies entirely on AI for code generation and maintenance, this is acceptable.
+
+---
+
+## 2026-02-12 — Post-Discussion Updates
+
+### Decision 14: AI Model — `@cf/qwen/qwen3-30b-a3b-fp8`
+
+**Decision**: Use `@cf/qwen/qwen3-30b-a3b-fp8` as the primary Workers AI model instead of `@cf/meta/llama-3.1-8b-instruct`.
+
+**Rationale**:
+- MoE (Mixture of Experts) architecture: 30B total parameters but only 3B active per request
+- Costs ~4.4 Neurons/request vs ~15.2 for llama-3.1-8b — **3.4× cheaper**
+- Free capacity: ~2,254 requests/day vs ~658 — enough for 10+ active users within free tier
+- Strong multilingual support including Indonesian (Qwen trained on Asian language data)
+- Supports function calling for structured JSON output (intent detection)
+
+**Trade-off**: Newer model, less battle-tested than Llama. Alternative `granite-4.0-h-micro` (~1.5 Neurons/req, ~6,764 free req/day) can be tested if Qwen3 quality is insufficient.
+
+---
+
+### Decision 15: Schema Versioning via `_schema_meta`
+
+**Decision**: Add a `_schema_meta` table to track database schema version, with automatic incremental migration on Durable Object initialization.
+
+**Rationale**:
+- Each user has their own SQLite database in their Durable Object. Schema changes (new columns, new tables) must be applied per-user.
+- Without versioning, deploying code that expects a new column would crash for existing users.
+- With `_schema_meta`, migrations run automatically and lazily — only when a user sends a message after a new deployment.
+- Standard practice for any application using SQLite.
+
+**Trade-off**: Small overhead on first request after deployment (migration check), but negligible.
+
+---
+
+### Decision 16: Conversation State for Multi-Step Flows
+
+**Decision**: Store a `pending_action` state in Durable Object to handle multi-step conversations (OCR confirmation, loan registration, data editing).
+
+**Rationale**:
+- Telegram Bot is stateless per request — each message is a new Worker invocation.
+- Some features need multi-step flows: OCR → confirm, loan registration → multi-field input, edit → select + new value.
+- Conversation state is checked **before** AI intent detection, so replies like "Ya"/"Tidak" don't consume Neurons.
+- Saves ~13-22 Neurons per session with 3-5 confirmation exchanges.
+- State auto-expires after timeout (e.g., 5 minutes) to prevent stale data.
+- User can always cancel with "batal" or `/batal`.
+
+**Trade-off**: Adds complexity to the request routing logic, but essential for usable UX in chat-based interactions.
+
+---
+
+### Decision 17: Hybrid Chat + Mini App (Phase 4)
+
+**Decision**: Use chat-based interaction with inline keyboards for Phase 1-3. Add Telegram Mini App (WebApp) in Phase 4 for bulk operations.
+
+**Rationale**:
+- Phase 1-3 focus on getting core features working — chat + conversation state is sufficient for single-item operations.
+- The user frequently sends screenshots with multiple items (8+ orders, 12 installments), which are clunky to confirm one-by-one in chat.
+- Telegram Mini App provides full HTML/CSS/JS UI inside Telegram for table editing, bulk confirmation, and form filling.
+- Mini App can be hosted on Cloudflare Workers/Pages (free) — no additional infrastructure.
+- Deferring to Phase 4 keeps early development focused and simpler.
+
+**Trade-off**: Phase 1-3 UX for bulk operations will be suboptimal (one-by-one in chat). Acceptable because getting features working is more important than perfect UX initially.

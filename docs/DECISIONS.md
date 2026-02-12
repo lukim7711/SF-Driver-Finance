@@ -16,7 +16,7 @@ This document records important design decisions and their rationale.
 - Directly integrated with Workers AI and Durable Objects
 - No server management needed
 
-**Trade-off**: Limited to JavaScript/WASM, max 10ms CPU execution time (free tier).
+**Trade-off**: Limited to JavaScript/TypeScript/WASM, max 10ms CPU execution time (free tier).
 
 ---
 
@@ -84,16 +84,18 @@ This document records important design decisions and their rationale.
 
 ---
 
-### Decision 7: JavaScript (ES Modules)
+### Decision 7: TypeScript
 
-**Decision**: Use plain JavaScript (not TypeScript) for the initial phase.
+**Decision**: Use TypeScript as the project language.
 
 **Rationale**:
-- Faster for prototyping
-- Native in Cloudflare Workers without build step
-- Can migrate to TypeScript later if needed
+- Type safety makes code more reliable and self-documenting
+- AI tools (Perplexity/Claude) generate better, more consistent TypeScript code
+- Wrangler supports TypeScript natively — no separate build step or tsconfig needed
+- Better IDE support and autocompletion (helpful when reviewing AI-generated code)
+- Interfaces/types make Telegram API objects, DB schemas, and intent results clearer
 
-**Trade-off**: No type safety. TypeScript can be added in a later phase.
+**Trade-off**: Slightly more verbose than plain JavaScript, but the safety and clarity benefits outweigh this for a project built entirely by AI.
 
 ---
 

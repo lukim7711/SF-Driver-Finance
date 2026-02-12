@@ -177,17 +177,25 @@ Body (multipart/form-data):
 ### AI API Calls
 
 **Workers AI (Primary)**
-```javascript
-env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+```typescript
+const result = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
   messages: [{ role: 'user', content: prompt }]
-})
+});
 ```
 
 **DeepSeek API (Fallback)**
-```
-POST https://api.deepseek.com/chat/completions
-Header: Authorization: Bearer <DEEPSEEK_API_KEY>
-Body: { model: 'deepseek-chat', messages: [...] }
+```typescript
+const response = await fetch('https://api.deepseek.com/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'deepseek-chat',
+    messages: [{ role: 'user', content: prompt }],
+  }),
+});
 ```
 
 ## Intent Detection Format

@@ -8,7 +8,7 @@
 ## Current Phase: ✅ PLANNING COMPLETE → Ready for Development
 
 **Last Updated**: 2026-02-12
-**Last Session Summary**: Finalized all planning docs — README, ARCHITECTURE, CHANGELOG, AI-CONTEXT updated. All 10 docs are consistent and complete.
+**Last Session Summary**: Changed project language from JavaScript to TypeScript. All docs, config, and entry point updated.
 
 ---
 
@@ -17,18 +17,18 @@
 | Task | Status | Notes |
 |---|---|---|
 | Project structure | ✅ Done | Folders and base files created |
-| README.md | ✅ Done | Rewritten in English, reflects all latest decisions |
+| README.md | ✅ Done | English, TypeScript, all latest decisions |
 | Architecture design | ✅ Done | Includes ocr.space, updated DB tables |
 | Database schema | ✅ Done | loans + installments tables, 10 expense categories |
 | Feature list | ✅ Done | F03 expanded to 7 sub-features for pinjol |
-| API flow design | ✅ Done | 2-step OCR flow (ocr.space → AI parsing) |
-| Decisions log | ✅ Done | 11 decisions documented |
+| API flow design | ✅ Done | 2-step OCR flow, TypeScript code examples |
+| Decisions log | ✅ Done | 11 decisions (Decision 7 revised: TypeScript) |
 | Limits & strategy | ✅ Done | ocr.space separated from Neuron budget |
 | AI Context file | ✅ Done | `docs/AI-CONTEXT.md` |
 | Progress tracker | ✅ Done | This file |
 | Debt study case doc | ✅ Done | `docs/DEBT-STUDY-CASE.md` with 5 platform data |
 | Changelog | ✅ Done | All sessions documented |
-| Wrangler config | ✅ Done | All bindings and secrets configured |
+| Wrangler config | ✅ Done | main → src/index.ts, all bindings and secrets |
 
 **All planning documentation is complete and consistent.** ✅
 
@@ -40,9 +40,9 @@
 
 | File | Status | Description |
 |---|---|---|
-| `src/index.js` | 🔲 Placeholder | Returns "Coming Soon" — no logic yet |
+| `src/index.ts` | 🔲 Placeholder | TypeScript entry point with Env interface, no logic yet |
 | `wrangler.jsonc` | ✅ Configured | DO binding, AI binding, vars, secrets |
-| `package.json` | ✅ Configured | Only wrangler as devDependency |
+| `package.json` | ✅ Configured | wrangler + typescript + @cloudflare/workers-types |
 
 ### Features Implementation
 
@@ -107,7 +107,7 @@ Phased approach — build foundation first, then layer features:
 
 **Start Phase 1: Foundation**
 
-1. Implement Telegram webhook handler in `src/index.js`
+1. Implement Telegram webhook handler in `src/index.ts`
 2. Add webhook secret validation
 3. Implement `/start` command with welcome message
 4. Implement `/help` command with usage guide
@@ -123,4 +123,5 @@ Phased approach — build foundation first, then layer features:
 | 2026-02-11 | #1 | Initial project setup: README, architecture, database schema, features, decisions, limits, API flow, changelog |
 | 2026-02-12 | #2 | Added AI-CONTEXT.md & PROGRESS.md. Identified 3 major revisions needed |
 | 2026-02-12 | #3 | Major revision: DATABASE, FEATURES, DECISIONS, LIMITS, API-FLOW, wrangler. Added DEBT-STUDY-CASE.md |
-| 2026-02-12 | #4 | Finalized all docs: README, ARCHITECTURE, CHANGELOG, AI-CONTEXT updated. Planning complete ✅ |
+| 2026-02-12 | #4 | Finalized all docs: README, ARCHITECTURE, CHANGELOG, AI-CONTEXT updated |
+| 2026-02-12 | #5 | Language change: JavaScript → TypeScript. All docs, config, entry point updated |

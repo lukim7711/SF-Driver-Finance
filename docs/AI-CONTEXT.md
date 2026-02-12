@@ -34,7 +34,7 @@ This is a **personal-use** application, not multi-tenant.
 | AI (Fallback) | DeepSeek API | ~$0.12/month estimated |
 | OCR | **ocr.space API** (free tier) | NOT Workers AI vision model |
 | Bot Platform | Telegram Bot API | Webhook mode |
-| Language | JavaScript (ES Modules) | No TypeScript, no build step |
+| Language | **TypeScript** | Wrangler handles compilation natively |
 
 ### Important: OCR Decision
 
@@ -91,15 +91,16 @@ All planning docs are **finalized** ✅. Read these files in order of relevance:
 
 ## 6. Rules for AI Code Generation
 
-1. **Language**: All code in English (variables, functions, comments, logs, error messages).
-2. **Simplicity**: Write simple, readable code. Avoid complex patterns (no abstract factories, no deep inheritance). The developer is not a programmer.
+1. **Language**: All code in **TypeScript** and in English (variables, functions, comments, logs, error messages).
+2. **Simplicity**: Write simple, readable code. Avoid complex patterns (no abstract factories, no deep inheritance). The developer is not a programmer. Use TypeScript types to make code self-documenting.
 3. **Comments**: Add clear English comments explaining WHAT each function does and WHY.
-4. **Single file first**: Start with everything in `src/index.js`, refactor into modules only when the file gets too large (>300 lines per logical section).
+4. **Single file first**: Start with everything in `src/index.ts`, refactor into modules only when the file gets too large (>300 lines per logical section).
 5. **Error handling**: Always handle errors gracefully with user-friendly Telegram messages (in Indonesian for the end-user).
 6. **Bot responses**: Telegram bot messages to the user should be in **Indonesian** (the user is Indonesian).
 7. **Testing**: After each feature, provide a way to test it manually via Telegram.
 8. **Incremental**: Build one feature at a time. Don't try to build everything in one session.
 9. **Update PROGRESS.md**: At the end of each session, update `docs/PROGRESS.md` with what was done and what's next.
+10. **Type safety**: Use proper TypeScript interfaces/types for Telegram API objects, database rows, AI responses, and intent detection results. Avoid `any` where possible.
 
 ## 7. Environment Variables & Secrets
 

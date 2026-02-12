@@ -23,14 +23,14 @@ Personal finance management app for **ShopeeFood/SPX Express Drivers** running a
 | AI Fallback | DeepSeek API |
 | OCR | ocr.space API (free tier) |
 | Bot Platform | Telegram Bot API (webhook mode) |
-| Language | JavaScript (ES Modules) |
+| Language | TypeScript |
 
 ## Project Structure
 
 ```
 SF-Driver-Finance/
 ├── src/
-│   └── index.js              # Worker entry point
+│   └── index.ts              # Worker entry point
 ├── docs/
 │   ├── AI-CONTEXT.md         # AI entry point (read this first)
 │   ├── PROGRESS.md           # Current status & next steps

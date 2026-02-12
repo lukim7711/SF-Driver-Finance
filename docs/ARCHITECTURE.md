@@ -28,16 +28,16 @@ SF Driver Finance uses a **serverless** architecture based on Cloudflare Workers
                 └──────┬───────┘               │        └───────┬────────┘
                        │              ┌────────┘                │
                        ▼              ▼                         │
-                ┌─────────────────────────┐                    │
-                │   Handler               │ ◄──────────────────┘
-                │   (Business Logic)      │
-                │                         │
-                │   • Income recording    │
-                │   • Expense recording   │
-                │   • Loan management     │
-                │   • Target tracking     │
-                │   • Report generation   │
-                └────────────┬────────────┘
+                ┌─────────────────────────────┐                 │
+                │   Handler                   │ ◄───────────────┘
+                │   (Business Logic)          │
+                │                             │
+                │   • Income recording        │
+                │   • Expense recording       │
+                │   • Loan management         │
+                │   • Target tracking         │
+                │   • Report generation       │
+                └────────────┬────────────────┘
                              │
                              ▼
                    ┌─────────────────┐
@@ -102,4 +102,4 @@ SF Driver Finance uses a **serverless** architecture based on Cloudflare Workers
 | AI Fallback | DeepSeek API | Paid, usage-based (~$0.12/mo) |
 | OCR | ocr.space API | Free: 25K req/month |
 | Bot | Telegram Bot API | Free, webhook mode |
-| Language | JavaScript (ES Modules) | Native in Workers, no build step |
+| Language | TypeScript | Wrangler compiles natively |

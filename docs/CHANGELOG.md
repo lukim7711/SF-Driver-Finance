@@ -6,7 +6,34 @@ Format: `[Date] — Description`
 
 ---
 
-## 2026-02-12 — Planning Finalization (Session #3)
+## 2026-02-12 — Language Change: TypeScript (Session #5)
+
+### Revised
+
+- **All documentation** — JavaScript references changed to TypeScript across all docs
+- `README.md` — Tech stack: TypeScript, project structure: `src/index.ts`
+- `docs/AI-CONTEXT.md` — Tech stack, code generation rules updated for TypeScript (added Rule #10: type safety)
+- `docs/ARCHITECTURE.md` — Tech stack table updated
+- `docs/DECISIONS.md` — Decision 7 rewritten: TypeScript chosen (was JavaScript)
+- `docs/API-FLOW.md` — Code examples converted to TypeScript syntax
+- `wrangler.jsonc` — `main` changed from `src/index.js` to `src/index.ts`
+- `package.json` — `main` changed to `src/index.ts`, added `typescript` and `@cloudflare/workers-types` devDependencies
+- `src/index.ts` — New TypeScript entry point with `Env` interface and proper type annotations (replaces `src/index.js`)
+
+---
+
+## 2026-02-12 — Planning Finalization Part 2 (Session #4)
+
+### Revised
+
+- `README.md` — Rewritten in English. Updated tech stack (added ocr.space), project structure (added new docs), prerequisites (added ocr.space API key), secrets setup section.
+- `docs/ARCHITECTURE.md` — Rewritten in English. Added ocr.space as separate component in architecture diagram. Updated database tables (loans + installments). Clarified AI layer only handles intent detection + OCR text parsing.
+- `docs/CHANGELOG.md` — Rewritten in English. Added all session entries.
+- `docs/AI-CONTEXT.md` — Updated to reflect all planning docs are finalized.
+
+---
+
+## 2026-02-12 — Planning Revision (Session #3)
 
 ### Revised
 
@@ -33,17 +60,6 @@ Format: `[Date] — Description`
 ### Identified
 
 - 3 major revisions needed: OCR → ocr.space, English code rule, debt feature redesign for pinjol.
-
----
-
-## 2026-02-12 — Planning Finalization Part 2 (Session #4)
-
-### Revised
-
-- `README.md` — Rewritten in English. Updated tech stack (added ocr.space), project structure (added new docs), prerequisites (added ocr.space API key), secrets setup section.
-- `docs/ARCHITECTURE.md` — Rewritten in English. Added ocr.space as separate component in architecture diagram. Updated database tables (loans + installments). Clarified AI layer only handles intent detection + OCR text parsing.
-- `docs/CHANGELOG.md` — Rewritten in English. Added all session entries.
-- `docs/AI-CONTEXT.md` — Updated to reflect all planning docs are finalized.
 
 ---
 

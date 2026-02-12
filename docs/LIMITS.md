@@ -1,122 +1,144 @@
-# Limit Free Tier & Strategi Penghematan
+# Free Tier Limits & Optimization Strategy
 
-Dokumen ini mencatat semua limit Cloudflare Free Tier yang relevan dan strategi untuk memaksimalkan penggunaan.
+This document records all relevant Cloudflare Free Tier limits and strategies to maximize usage.
 
 ## Cloudflare Workers
 
-| Resource | Limit Free Tier | Catatan |
+| Resource | Free Tier Limit | Notes |
 |---|---|---|
-| Requests | 100.000/hari | 1 pesan Telegram = 1 request Worker |
-| CPU time | 10ms per request | Cukup untuk parsing + DB query |
+| Requests | 100,000/day | 1 Telegram message = 1 Worker request |
+| CPU time | 10ms per request | Sufficient for parsing + DB query |
 | Memory | 128 MB | Per isolate |
-| Script size | 10 MB (compressed) | Lebih dari cukup |
-| Subrequests | 50 per request | Untuk API calls (Telegram, AI) |
-| Cron triggers | 5 | Bisa dipakai untuk daily reset counter |
+| Script size | 10 MB (compressed) | More than enough |
+| Subrequests | 50 per request | For API calls (Telegram, AI, ocr.space) |
+| Cron triggers | 5 | Can be used for daily counter reset |
 
-**Estimasi penggunaan**: Seorang driver aktif mengirim ~50-100 pesan/hari. Dengan 100K limit, bisa menampung ~1.000 user aktif.
+**Usage estimate**: An active driver sends ~50-100 messages/day. With 100K limit, can support ~1,000 active users.
 
 ## Cloudflare Workers AI
 
-| Resource | Limit Free Tier | Catatan |
+| Resource | Free Tier Limit | Notes |
 |---|---|---|
-| Neurons | 10.000/hari | Dipakai untuk intent detection + OCR |
+| Neurons | 10,000/day | Used **only for intent detection** (text LLM) |
 
-**Estimasi per request**:
+**Important**: OCR does NOT use Workers AI. OCR goes through ocr.space API.
+
+**Estimate per request**:
 - Intent detection (text): ~100-300 Neurons (LLM inference)
-- OCR (gambar): ~500-1.000 Neurons (vision model)
 
-**Estimasi kapasitas harian**:
-- Hanya intent detection: ~30-100 requests/hari
-- Campuran intent + OCR: ~15-30 requests/hari
+**Daily capacity estimate (intent detection only)**:
+- Conservative (300 Neurons/req): ~33 requests/day
+- Optimistic (100 Neurons/req): ~100 requests/day
+- With fallback at 80%: 26-80 free requests, then DeepSeek kicks in
 
-⚠️ **Ini adalah bottleneck utama**. Harus hemat dan fallback ke DeepSeek.
+⚠️ **Still the main bottleneck**, but significantly better now that OCR is separated.
 
 ## Cloudflare Durable Objects
 
-| Resource | Limit Free Tier | Catatan |
+| Resource | Free Tier Limit | Notes |
 |---|---|---|
-| Requests | 100.000/hari | 1 pesan ≈ 1-3 DO requests |
-| Storage | 5 GB total | Cukup untuk ribuan user |
-| Row reads | 5.000.000/hari | Query SELECT |
-| Row writes | 100.000/hari | INSERT/UPDATE/DELETE |
+| Requests | 100,000/day | 1 message ≈ 1-3 DO requests |
+| Storage | 5 GB total | Sufficient for thousands of users |
+| Row reads | 5,000,000/day | SELECT queries |
+| Row writes | 100,000/day | INSERT/UPDATE/DELETE |
 
-**Estimasi per user**: ~1 KB per transaksi. 5 GB bisa menampung jutaan transaksi.
+**Per user estimate**: ~1 KB per transaction. 5 GB can hold millions of transactions.
+
+## ocr.space API (OCR)
+
+| Resource | Free Tier Limit | Notes |
+|---|---|---|
+| Requests | 25,000/month | ~833/day |
+| File size | 1 MB | Sufficient for phone photos (compressed) |
+| Rate limit | Not specified | Reasonable use expected |
+| Response | JSON with extracted text | Needs AI post-processing for data extraction |
+
+**Usage estimate**: A driver might send 2-5 receipt photos per day. 25K/month is more than sufficient for personal use.
+
+**OCR Flow**: Image → ocr.space (text extraction) → Workers AI or DeepSeek (data parsing from text) → structured data.
+
+Note: The AI step after OCR for parsing the extracted text DOES consume Neurons. But text-to-structured-data is lighter than image-to-text.
 
 ## DeepSeek API (Fallback)
 
-| Resource | Harga | Catatan |
+| Resource | Price | Notes |
 |---|---|---|
-| Input tokens | $0.14/1M tokens | Murah |
-| Output tokens | $0.28/1M tokens | Murah |
-| Cache hit | $0.014/1M tokens | Lebih murah lagi |
+| Input tokens | $0.14/1M tokens | Cheap |
+| Output tokens | $0.28/1M tokens | Cheap |
+| Cache hit | $0.014/1M tokens | Even cheaper |
 
-**Estimasi biaya**: Prompt intent detection ~200 tokens, output ~50 tokens. Per request ≈ $0.00004. 100 requests/hari ≈ $0.004/hari ≈ $0.12/bulan.
+**Cost estimate**: Intent detection prompt ~200 tokens, output ~50 tokens. Per request ≈ $0.00004. 100 requests/day ≈ $0.004/day ≈ $0.12/month.
 
 ---
 
-## Strategi Penghematan
+## Optimization Strategies
 
 ### 1. AI Fallback Mechanism
 
 ```
-Cek counter Neurons harian
+Check daily Neuron counter
   │
-  ├─ < 8.000 → Pakai Workers AI (gratis)
+  ├─ < 8,000 → Use Workers AI (free)
   │
-  └─ >= 8.000 → Pakai DeepSeek API (murah)
+  └─ >= 8,000 → Use DeepSeek API (cheap)
 ```
 
-- Tracking Neurons di Durable Object (counter global)
-- Threshold: 80% dari limit (8.000/10.000)
-- Reset counter setiap 00:00 UTC via Cron Trigger
+- Track Neurons in Durable Object (global counter)
+- Threshold: 80% of limit (8,000/10,000)
+- Reset counter at 00:00 UTC via Cron Trigger
 
 ### 2. Prompt Optimization
 
-- Gunakan prompt sesingkat mungkin tapi tetap akurat
-- Cache prompt template (jangan generate ulang tiap request)
-- Gunakan model yang paling ringan tapi cukup akurat:
-  - Workers AI: `@cf/meta/llama-3.1-8b-instruct` (ringan, cukup untuk intent)
-  - DeepSeek: `deepseek-chat` (murah, akurat)
+- Use shortest possible prompts that are still accurate
+- Cache prompt templates (don't regenerate per request)
+- Use lightweight but accurate models:
+  - Workers AI: `@cf/meta/llama-3.1-8b-instruct` (lightweight, sufficient for intent)
+  - DeepSeek: `deepseek-chat` (cheap, accurate)
 
-### 3. Response Caching
+### 3. Command Shortcut (Bypass AI)
 
-- Cache respons untuk pesan yang identik (dalam DO)
-- Contoh: "/help" selalu sama → tidak perlu AI
+Commands that don't need AI processing:
+- `/start` → direct welcome message
+- `/help` → direct guide
+- `/laporan` → direct DB query, format, send
+- `/hutang` → direct loan dashboard
+- `/reset` → direct confirmation
 
-### 4. Command Shortcut (Bypass AI)
+This saves Neurons for messages that truly need intent detection.
 
-Command yang tidak perlu AI processing:
-- `/start` → langsung welcome message
-- `/help` → langsung panduan
-- `/laporan` → langsung query DB, format, kirim
-- `/reset` → langsung konfirmasi
+### 4. OCR Budget (Separate from AI)
 
-Ini menghemat Neurons untuk pesan yang benar-benar butuh intent detection.
+Since OCR uses ocr.space (not Workers AI):
+- OCR requests do NOT reduce AI Neuron budget
+- Budget is 25,000 OCR requests/month (more than enough)
+- Only the post-OCR text parsing step uses Neurons
+- Post-OCR parsing is lighter than full image processing
 
-### 5. Batch Processing untuk OCR
+### 5. Batch Limit for OCR
 
-- Jika user kirim banyak gambar, proses satu-satu tapi batasi maks 5 gambar per sesi
-- Estimasi OCR berat (~500-1.000 Neurons per gambar), jadi perlu dibatasi
+- If user sends many images, process one by one but limit to max 5 images per session
+- Each image = 1 ocr.space request + 1 AI parsing request
+- Daily estimate: 5 images × 150 Neurons (text parsing) = 750 Neurons for OCR-related AI
 
-### 6. Estimasi Budget Harian
+### 6. Daily Budget Estimate
 
-| Skenario | Workers AI | DeepSeek | Total Cost |
-|---|---|---|---|
-| 1 user, 50 pesan, 5 OCR | ~4.500 Neurons | 0 | Gratis |
-| 1 user, 100 pesan, 10 OCR | ~10.000 Neurons | ~50 req | ~$0.002 |
-| 5 user, 50 pesan each | ~10.000 Neurons | ~150 req | ~$0.006 |
-| 10 user, 30 pesan each | ~8.000 Neurons | ~200 req | ~$0.008 |
+| Scenario | Workers AI Neurons | DeepSeek | ocr.space | Est. Cost |
+|---|---|---|---|---|
+| 1 user, 50 msgs, 3 OCR | ~5,450 | 0 | 3 | Free |
+| 1 user, 100 msgs, 5 OCR | ~8,750 | ~20 req | 5 | ~$0.001 |
+| 3 users, 50 msgs each, 3 OCR each | ~8,000+ | ~50 req | 9 | ~$0.002 |
 
-**Kesimpulan**: Untuk penggunaan 1-5 user aktif, biaya DeepSeek fallback sangat kecil (~$0.20/bulan atau kurang).
+**Conclusion**: For 1-3 active users, DeepSeek fallback cost is minimal (~$0.10/month or less). OCR is effectively free.
 
 ---
 
 ## Monitoring
 
-Yang perlu dimonitor secara rutin:
+Items to monitor regularly:
 
-1. **Workers AI Neurons** — dashboard Cloudflare, daily
-2. **Durable Objects storage** — pastikan tidak mendekati 5 GB
-3. **DeepSeek API usage** — cek billing dashboard
-4. **Worker request count** — pastikan di bawah 100K/hari
-5. **Error rate** — log errors untuk debugging
+1. **Workers AI Neurons** — Cloudflare dashboard, daily
+2. **Durable Objects storage** — ensure not approaching 5 GB
+3. **DeepSeek API usage** — check billing dashboard
+4. **ocr.space usage** — track monthly request count (25K limit)
+5. **Worker request count** — ensure under 100K/day
+6. **Error rate** — log errors for debugging

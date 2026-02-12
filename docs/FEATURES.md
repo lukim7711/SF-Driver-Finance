@@ -1,126 +1,172 @@
-# Daftar Fitur
+# Feature List
 
-Status: ✅ Selesai | 🔧 Dalam Proses | 📋 Rencana
+Status: ✅ Done | 🔧 In Progress | 📋 Planned
 
 ---
 
-## Fitur Inti
+## Core Features
 
-### 📋 F01 — Catat Pemasukan
+### 📋 F01 — Record Income
 
-Mencatat pemasukan dari orderan ShopeeFood dan SPX Express.
+Record earnings from ShopeeFood and SPX Express delivery orders.
 
-- Input: pesan natural language (contoh: "dapet 45rb dari food", "spx 30000")
-- Data: jumlah, tipe (food/spx), tanggal, catatan opsional
-- Output: konfirmasi pencatatan + total hari ini
+- Input: natural language message (e.g., "dapet 45rb dari food", "spx 30000")
+- Data: amount, type (food/spx), date, optional note
+- Output: confirmation + today's total income
 
-### 📋 F02 — Catat Pengeluaran
+### 📋 F02 — Record Expenses
 
-Mencatat pengeluaran operasional harian.
+Record daily operational and household expenses.
 
-- Input: pesan natural language (contoh: "bensin 20rb", "parkir 5000", "makan siang 15rb")
-- Kategori: bensin, parkir, makan, servis motor, lain-lain
-- Data: jumlah, kategori, tanggal, catatan opsional
-- Output: konfirmasi pencatatan + total pengeluaran hari ini
+- Input: natural language message (e.g., "bensin 20rb", "parkir 5000", "makan siang 15rb", "listrik 150rb")
+- Categories: fuel, parking, meals, cigarettes, data_plan, vehicle_service, household, electricity, emergency, other
+- Data: amount, category, date, optional note
+- Output: confirmation + today's total expenses
 
-### 📋 F03 — Tracking Hutang
+### 📋 F03 — Loan/Debt Tracking (Pinjol)
 
-Mencatat dan melacak hutang (memberi pinjaman atau meminjam).
+Track multiple online lending platform (pinjol) installments with schedules, due dates, and late fees.
 
-- Input: "hutang ke Budi 50rb", "Ani bayar hutang 30rb"
-- Data: nama orang, jumlah, tipe (piutang/utang), tanggal, status
-- Fitur: tandai lunas, reminder (opsional)
-- Output: konfirmasi + daftar hutang aktif
+> ⚠️ This is the **most complex and critical** feature. See `docs/DEBT-STUDY-CASE.md` for real data reference.
 
-### 📋 F04 — Target Pendapatan
+**Sub-features:**
 
-Set dan tracking target pendapatan per periode.
+**F03a — Register Loan**
+- Input: platform name, total amount, monthly installment, number of installments, due day, late fee rule
+- Example: "tambah hutang Shopee Pinjam, total 4.9jt, cicilan 435rb, 10x, jatuh tempo tanggal 13, denda 5% per bulan"
+- Action: create loan record + auto-generate all installment rows
+- Support: already-paid installments (for loans taken before bot was created)
+
+**F03b — Record Installment Payment**
+- Input: platform name + confirmation of payment
+- Example: "bayar cicilan Kredivo 2" or "sudah bayar SeaBank bulan ini"
+- Action: mark installment as paid, update paid_installments counter, record paid_date
+- Support: partial payments
+
+**F03c — View Loan Dashboard**
+- Show all active loans with:
+  - Platform name
+  - Remaining balance
+  - Next due date + countdown (e.g., "3 hari lagi")
+  - Monthly installment amount
+  - Progress (X/Y installments paid)
+- Sorted by nearest due date
+
+**F03d — Due Date Alerts**
+- When user opens bot or sends any message, check for upcoming due dates
+- Alert levels:
+  - ⚠️ 7 days before due: "Cicilan [platform] jatuh tempo 7 hari lagi"
+  - 🔴 3 days before due: "URGENT: Cicilan [platform] jatuh tempo 3 hari lagi!"
+  - 💀 Past due: "TELAT: Cicilan [platform] sudah lewat jatuh tempo X hari! Denda: Rp..."
+- Calculate and show estimated late fee
+
+**F03e — Late Fee Calculator**
+- Automatically calculate late fees based on platform rules:
+  - percent_monthly: X% of installment amount per month late
+  - percent_daily: X% of installment amount per day late
+- Show: original amount + late fee = total to pay
+
+**F03f — Monthly Obligation Summary**
+- Show total installments due in a given month across all platforms
+- Example: "Bulan Maret 2026: Total cicilan Rp1,380,282 (dari 5 platform)"
+- Compare with average income to show feasibility
+
+**F03g — Payoff Progress**
+- Overall: total debt remaining vs total original debt
+- Per platform: installments paid / total installments
+- Visual: progress bar or percentage
+
+### 📋 F04 — Income Targets
+
+Set and track income targets per period.
 
 - Input: "target hari ini 200rb", "target minggu ini 1.5jt"
-- Periode: harian, mingguan, bulanan
-- Output: progress bar / persentase pencapaian
-- Notifikasi: saat target tercapai
+- Periods: daily, weekly, monthly
+- Output: progress percentage
+- Notification: when target is achieved
 
-### 📋 F05 — Baca Gambar (OCR)
+### 📋 F05 — OCR Receipt Reading
 
-Ekstrak data keuangan dari gambar/screenshot secara otomatis.
+Extract financial data from images/screenshots automatically via **ocr.space API**.
 
-- Input: foto struk bensin, nota parkir, screenshot orderan, screenshot hutang
-- Proses: OCR via Workers AI / DeepSeek → ekstrak data → konfirmasi ke user
-- Output: data yang terdeteksi + konfirmasi sebelum disimpan
-- Penting: selalu minta konfirmasi user sebelum menyimpan hasil OCR
+- Input: photo of fuel receipt, parking ticket, order screenshot, loan statement
+- Process: Download image from Telegram → send to ocr.space API → extract text → AI parses data → confirm with user
+- Output: detected data + confirmation before saving
+- Important: ALWAYS ask user confirmation before saving OCR results
+- API: ocr.space free tier (NOT Workers AI vision model)
 
 ### 📋 F06 — Intent Detection
 
-Mendeteksi maksud user dari pesan natural language.
+Detect user intent from natural language messages.
 
-- AI memproses pesan → menentukan intent + ekstrak parameter
-- Intent yang didukung:
-  - `catat_pemasukan` — mencatat income
-  - `catat_pengeluaran` — mencatat expense
-  - `catat_hutang` — mencatat debt
-  - `bayar_hutang` — update status hutang
-  - `set_target` — set target pendapatan
-  - `lihat_laporan` — minta laporan
-  - `lihat_hutang` — daftar hutang
-  - `lihat_target` — progress target
-  - `bantuan` — help/panduan
-  - `tidak_dikenali` — fallback
+- AI processes message → determines intent + extracts parameters
+- Supported intents:
+  - `record_income` — record delivery earnings
+  - `record_expense` — record an expense
+  - `register_loan` — add a new loan/debt
+  - `pay_installment` — mark installment as paid
+  - `view_loans` — show loan dashboard
+  - `view_report` — request financial report
+  - `view_target` — check target progress
+  - `set_target` — set income target
+  - `help` — show help/guide
+  - `unknown` — fallback
 
-### 📋 F07 — Laporan Keuangan
+### 📋 F07 — Financial Reports
 
-Menampilkan ringkasan keuangan per periode.
+Display financial summary per period.
 
-- Periode: hari ini, minggu ini, bulan ini
-- Isi laporan:
-  - Total pemasukan (breakdown food/spx)
-  - Total pengeluaran (breakdown per kategori)
-  - Laba bersih (pemasukan - pengeluaran)
-  - Progress target (jika ada)
-  - Hutang aktif
-- Format: teks terformat rapi di Telegram
+- Periods: today, this week, this month
+- Report contents:
+  - Total income (food/spx breakdown)
+  - Total expenses (per category breakdown)
+  - Net profit (income - expenses)
+  - Target progress (if set)
+  - Upcoming loan payments this month
+  - Total monthly loan obligation
+- Format: neatly formatted text in Telegram
 
 ### 📋 F08 — AI Fallback (Workers AI → DeepSeek)
 
-Otomatis beralih ke DeepSeek API saat Workers AI mendekati limit.
+Automatically switch to DeepSeek API when Workers AI approaches daily limit.
 
-- Tracking usage Neurons harian
-- Threshold: 80% dari limit (8.000/10.000 Neurons)
-- Fallback transparan — user tidak merasakan perbedaan
-- Reset counter setiap tengah malam UTC
-
----
-
-## Fitur Pendukung
-
-### 📋 F09 — Onboarding User Baru
-
-- Welcome message saat pertama kali chat
-- Panduan singkat cara pakai bot
-- Setup timezone (default: WIB)
-
-### 📋 F10 — Command Dasar
-
-- `/start` — mulai bot / onboarding
-- `/help` — panduan penggunaan
-- `/laporan` — shortcut laporan hari ini
-- `/reset` — reset data (dengan konfirmasi ganda)
+- Track daily Neuron usage
+- Threshold: 80% of limit (8,000/10,000 Neurons)
+- Transparent fallback — user notices no difference
+- Reset counter at midnight UTC via Cron Trigger
 
 ---
 
-## Roadmap Masa Depan
+## Supporting Features
+
+### 📋 F09 — New User Onboarding
+
+- Welcome message on first chat
+- Brief usage guide
+- Timezone setup (default: WIB)
+
+### 📋 F10 — Basic Commands
+
+- `/start` — start bot / onboarding
+- `/help` — usage guide
+- `/laporan` — shortcut for today's report
+- `/hutang` — shortcut for loan dashboard
+- `/reset` — reset data (with double confirmation)
+
+---
+
+## Future Roadmap
 
 ### 📋 F11 — Export Data
+- Export to CSV
+- Send via Telegram as file
 
-- Export ke CSV/Excel
-- Kirim via Telegram sebagai file
+### 📋 F12 — Debt Payoff Strategy
+- Suggest optimal payment order (avalanche vs snowball method)
+- Calculate estimated payoff date based on average daily income
+- "What if" scenarios (e.g., "kalau nabung 50rb/hari, lunas kapan?")
 
-### 📋 F12 — Multi-Currency Support
-
-- Support mata uang selain Rupiah (jika ada driver luar negeri)
-
-### 📋 F13 — Analisis & Insight
-
-- Tren pengeluaran
-- Rekomendasi penghematan
-- Perbandingan antar periode
+### 📋 F13 — Analytics & Insights
+- Expense trends over time
+- Savings recommendations
+- Period-over-period comparison

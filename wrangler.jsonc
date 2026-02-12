@@ -1,6 +1,6 @@
 /**
- * Konfigurasi Cloudflare Workers untuk SF Driver Finance
- * Telegram Bot manajemen keuangan ShopeeFood Driver
+ * Cloudflare Workers Configuration for SF Driver Finance
+ * Telegram Bot for ShopeeFood Driver financial management
  */
 {
   "name": "sf-driver-finance",
@@ -18,7 +18,7 @@
     ]
   },
 
-  // Migrasi Durable Objects
+  // Durable Objects migrations
   "migrations": [
     {
       "tag": "v1",
@@ -31,10 +31,11 @@
     "binding": "AI"
   },
 
-  // Environment variables (secrets diset via wrangler secret)
-  // TELEGRAM_BOT_TOKEN → wrangler secret put TELEGRAM_BOT_TOKEN
-  // DEEPSEEK_API_KEY → wrangler secret put DEEPSEEK_API_KEY
+  // Environment variables (secrets set via wrangler secret)
+  // TELEGRAM_BOT_TOKEN    → wrangler secret put TELEGRAM_BOT_TOKEN
   // TELEGRAM_WEBHOOK_SECRET → wrangler secret put TELEGRAM_WEBHOOK_SECRET
+  // DEEPSEEK_API_KEY      → wrangler secret put DEEPSEEK_API_KEY
+  // OCR_SPACE_API_KEY     → wrangler secret put OCR_SPACE_API_KEY
   "vars": {
     "ENVIRONMENT": "production",
     "BOT_NAME": "SF Driver Finance",

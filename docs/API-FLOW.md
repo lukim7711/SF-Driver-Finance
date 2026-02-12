@@ -1,31 +1,33 @@
-# Alur API Request
+# API Request Flow
 
-Dokumen ini menjelaskan alur lengkap dari pesan user di Telegram hingga respons bot dikirim kembali.
+This document describes the complete flow from a user's Telegram message to the bot's response.
 
-## Alur Utama: Pesan Teks
+## Main Flow: Text Message
 
 ```
-User kirim pesan di Telegram
+User sends message in Telegram
         │
         ▼
 ┌─────────────────────────┐
 │ 1. Telegram Server      │
-│    POST webhook ke      │
+│    POST webhook to      │
 │    Worker URL           │
 └────────────┬────────────┘
              │
              ▼
 ┌─────────────────────────┐
-│ 2. Worker: Validasi     │
-│    - Cek webhook secret │
+│ 2. Worker: Validate     │
+│    - Check webhook      │
+│      secret             │
 │    - Parse request body │
-│    - Ekstrak message    │
+│    - Extract message    │
 └────────────┬────────────┘
              │
              ▼
 ┌─────────────────────────┐
-│ 3. Worker: Cek AI Usage │
-│    - Baca counter       │
+│ 3. Worker: Check AI     │
+│    Usage                │
+│    - Read Neuron counter│
 │    - < 8000 Neurons?    │
 │      → Workers AI       │
 │    - >= 8000 Neurons?   │
@@ -35,7 +37,7 @@ User kirim pesan di Telegram
              ▼
 ┌─────────────────────────┐
 │ 4. AI: Intent Detection │
-│    Input: pesan user    │
+│    Input: user message  │
 │    Output:              │
 │    - intent (string)    │
 │    - params (object)    │
@@ -45,15 +47,15 @@ User kirim pesan di Telegram
              ▼
 ┌─────────────────────────┐
 │ 5. Worker: Route Intent │
-│    Switch berdasarkan   │
-│    intent yang terdeteksi│
-│    → handler yang sesuai│
+│    Switch based on      │
+│    detected intent      │
+│    → appropriate handler│
 └────────────┬────────────┘
              │
              ▼
 ┌─────────────────────────┐
 │ 6. Durable Object       │
-│    - Ambil DO by user ID│
+│    - Get DO by user ID  │
 │    - Execute SQL query  │
 │    - Return result      │
 └────────────┬────────────┘
@@ -61,55 +63,75 @@ User kirim pesan di Telegram
              ▼
 ┌─────────────────────────┐
 │ 7. Worker: Format       │
-│    Response              │
-│    - Format teks Bahasa │
-│      Indonesia          │
-│    - Kirim via Telegram │
+│    Response             │
+│    - Format text in     │
+│      Indonesian         │
+│    - Send via Telegram  │
 │      sendMessage API    │
 └─────────────────────────┘
 ```
 
-## Alur Gambar: OCR Flow
+## Image Flow: OCR via ocr.space
 
 ```
-User kirim foto/gambar
+User sends photo/image
         │
         ▼
 ┌─────────────────────────┐
-│ 1. Worker: Terima       │
-│    - Deteksi ada photo  │
+│ 1. Worker: Receive      │
+│    - Detect photo in    │
+│      message            │
 │    - Download file via  │
 │      Telegram getFile   │
+│      API                │
 └────────────┬────────────┘
              │
              ▼
 ┌─────────────────────────┐
-│ 2. AI: OCR + Ekstraksi  │
-│    - Kirim gambar ke AI │
-│    - Ekstrak teks       │
-│    - Identifikasi data: │
-│      jumlah, kategori,  │
-│      tanggal, dll.      │
+│ 2. ocr.space API        │
+│    - Send image to      │
+│      ocr.space          │
+│    - Receive raw text   │
+│      extraction         │
+│    (Does NOT use        │
+│     Workers AI Neurons) │
 └────────────┬────────────┘
              │
              ▼
 ┌─────────────────────────┐
-│ 3. Worker: Konfirmasi   │
-│    - Tampilkan hasil    │
-│      OCR ke user        │
-│    - Minta konfirmasi:  │
+│ 3. AI: Parse OCR Text   │
+│    - Send extracted text│
+│      to Workers AI or   │
+│      DeepSeek           │
+│    - Identify data:     │
+│      amount, category,  │
+│      date, etc.         │
+│    (Uses Neurons, but   │
+│     text-only = lighter)│
+└────────────┬────────────┘
+             │
+             ▼
+┌─────────────────────────┐
+│ 4. Worker: Confirm      │
+│    - Display OCR result │
+│      to user            │
+│    - Ask confirmation:  │
 │      "Benar? (Ya/Tidak)"│
 └────────────┬────────────┘
              │
              ▼
 ┌─────────────────────────┐
-│ 4. User konfirmasi "Ya" │
-│    → Simpan ke DB       │
-│    → Kirim konfirmasi   │
+│ 5. User confirms "Ya"   │
+│    → Save to DB         │
+│    → Send confirmation  │
 └─────────────────────────┘
 ```
 
-## Detail Endpoint
+**Key difference from previous design**: OCR is now a 2-step process:
+1. **ocr.space** extracts raw text from image (free, no Neurons)
+2. **Workers AI / DeepSeek** parses the text into structured data (uses Neurons, but lighter than vision model)
+
+## Endpoint Details
 
 ### Webhook URL
 
@@ -121,17 +143,41 @@ Body: Telegram Update object (JSON)
 
 ### Telegram API Calls (Outgoing)
 
-| Method | Kegunaan |
+| Method | Purpose |
 |---|---|
-| `sendMessage` | Kirim teks respons ke user |
-| `getFile` | Download foto yang dikirim user |
-| `setWebhook` | Setup webhook URL (saat deploy) |
-| `deleteWebhook` | Hapus webhook (saat maintenance) |
+| `sendMessage` | Send text response to user |
+| `getFile` | Download photo sent by user |
+| `setWebhook` | Setup webhook URL (on deploy) |
+| `deleteWebhook` | Remove webhook (maintenance) |
+
+### ocr.space API Call
+
+```
+POST https://api.ocr.space/parse/image
+Header: apikey: <OCR_SPACE_API_KEY>
+Body (multipart/form-data):
+  - file: <image file or base64>
+  - language: ind (Indonesian) or eng
+  - isOverlayRequired: false
+  - OCREngine: 2 (recommended for receipts)
+```
+
+**Response** (simplified):
+```json
+{
+  "ParsedResults": [
+    {
+      "ParsedText": "SPBU 34.10102\nPremium\n4.50 Liter\nRp 47.250\n..."
+    }
+  ],
+  "IsErroredOnProcessing": false
+}
+```
 
 ### AI API Calls
 
 **Workers AI (Primary)**
-```
+```javascript
 env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
   messages: [{ role: 'user', content: prompt }]
 })
@@ -146,38 +192,38 @@ Body: { model: 'deepseek-chat', messages: [...] }
 
 ## Intent Detection Format
 
-### Input ke AI
+### AI Input Prompt
 
 ```
-Kamu adalah asisten keuangan ShopeeFood Driver.
-Deteksi intent dari pesan berikut dan ekstrak parameternya.
+You are a financial assistant for a ShopeeFood/SPX driver.
+Detect the intent from the following message and extract parameters.
 
-Pesan: "{user_message}"
+Message: "{user_message}"
 
-Respons dalam JSON:
+Respond in JSON:
 {
-  "intent": "nama_intent",
+  "intent": "intent_name",
   "params": { ... },
   "confidence": 0.0-1.0
 }
 ```
 
-### Output dari AI (Contoh)
+### AI Output Examples
 
 ```json
 // Input: "bensin 20rb"
 {
-  "intent": "catat_pengeluaran",
+  "intent": "record_expense",
   "params": {
     "amount": 20000,
-    "category": "bensin"
+    "category": "fuel"
   },
   "confidence": 0.95
 }
 
 // Input: "dapet 45000 dari food"
 {
-  "intent": "catat_pemasukan",
+  "intent": "record_income",
   "params": {
     "amount": 45000,
     "type": "food"
@@ -185,25 +231,31 @@ Respons dalam JSON:
   "confidence": 0.92
 }
 
-// Input: "hutang ke Budi 50rb"
+// Input: "bayar cicilan kredivo"
 {
-  "intent": "catat_hutang",
+  "intent": "pay_installment",
   "params": {
-    "person_name": "Budi",
-    "amount": 50000,
-    "type": "piutang"
+    "platform": "Kredivo"
   },
-  "confidence": 0.88
+  "confidence": 0.90
+}
+
+// Input: "lihat semua hutang"
+{
+  "intent": "view_loans",
+  "params": {},
+  "confidence": 0.93
 }
 ```
 
 ## Error Handling
 
-| Skenario | Penanganan |
+| Scenario | Handling |
 |---|---|
-| Webhook secret tidak valid | Return 401, abaikan request |
-| AI gagal / timeout | Coba fallback, jika gagal juga → pesan error ramah |
-| Intent tidak dikenali | Minta user ulangi dengan lebih jelas + contoh |
-| OCR tidak yakin | Tampilkan hasil + minta konfirmasi manual |
-| DB error | Log error, kirim pesan "coba lagi nanti" |
-| Telegram API error | Retry 1x, lalu log dan skip |
+| Invalid webhook secret | Return 401, ignore request |
+| AI failure / timeout | Try fallback; if both fail → friendly error message |
+| Unrecognized intent | Ask user to rephrase + show examples |
+| OCR uncertain | Show result + ask manual confirmation |
+| ocr.space API error | Show "OCR gagal, coba kirim ulang" message |
+| DB error | Log error, send "coba lagi nanti" message |
+| Telegram API error | Retry 1x, then log and skip |

@@ -1,96 +1,156 @@
-# Log Keputusan Desain
+# Design Decision Log
 
-Dokumen ini mencatat keputusan desain penting beserta alasannya.
-
----
-
-## 2025-02-11 — Inisialisasi Proyek
-
-### Keputusan 1: Cloudflare Workers sebagai Runtime
-
-**Keputusan**: Menggunakan Cloudflare Workers Free Tier sebagai runtime utama.
-
-**Alasan**:
-- Gratis hingga 100.000 requests/hari (cukup untuk penggunaan personal)
-- Edge computing = low latency global
-- Terintegrasi langsung dengan Workers AI dan Durable Objects
-- Tidak perlu manage server
-
-**Trade-off**: Terbatas di JavaScript/WASM, execution time max 10ms CPU (free tier).
+This document records important design decisions and their rationale.
 
 ---
 
-### Keputusan 2: Durable Objects + SQLite sebagai Database
+## 2026-02-11 — Project Initialization
 
-**Keputusan**: Menggunakan Durable Objects dengan SQLite storage, bukan D1 atau KV.
+### Decision 1: Cloudflare Workers as Runtime
 
-**Alasan**:
-- SQLite di Durable Objects = relational database yang proper
-- Per-user isolation secara natural (1 DO per Telegram user)
-- Transactional, konsisten, dan low-latency
-- Free tier: 5GB storage, 5M row reads/hari, 100K row writes/hari
+**Decision**: Use Cloudflare Workers Free Tier as the main runtime.
 
-**Trade-off**: Data tersebar per user (tidak bisa query cross-user dengan mudah). Untuk aplikasi keuangan personal, ini justru ideal.
+**Rationale**:
+- Free up to 100,000 requests/day (sufficient for personal use)
+- Edge computing = low latency globally
+- Directly integrated with Workers AI and Durable Objects
+- No server management needed
 
----
-
-### Keputusan 3: Workers AI + DeepSeek Fallback
-
-**Keputusan**: Workers AI sebagai AI primary, DeepSeek API sebagai fallback.
-
-**Alasan**:
-- Workers AI gratis 10.000 Neurons/hari, cukup untuk intent detection ringan
-- Jika mendekati limit (~80%), otomatis fallback ke DeepSeek
-- DeepSeek murah dan reliable sebagai backup
-- Dua provider = tidak pernah down total
-
-**Trade-off**: Perlu tracking usage Neurons harian untuk trigger fallback.
+**Trade-off**: Limited to JavaScript/WASM, max 10ms CPU execution time (free tier).
 
 ---
 
-### Keputusan 4: Telegram Bot dengan Webhook Mode
+### Decision 2: Durable Objects + SQLite as Database
 
-**Keputusan**: Menggunakan Telegram Bot API dengan webhook, bukan long polling.
+**Decision**: Use Durable Objects with SQLite storage instead of D1 or KV.
 
-**Alasan**:
-- Webhook cocok dengan arsitektur serverless (Workers)
-- Tidak perlu persistent connection
-- Lebih efisien — hanya dipanggil saat ada pesan masuk
+**Rationale**:
+- SQLite in Durable Objects = proper relational database
+- Natural per-user isolation (1 DO per Telegram user)
+- Transactional, consistent, and low-latency
+- Free tier: 5GB storage, 5M row reads/day, 100K row writes/day
 
----
-
-### Keputusan 5: Intent Detection, Bukan Command-Based
-
-**Keputusan**: User cukup kirim pesan natural language, bot mendeteksi intent via AI.
-
-**Alasan**:
-- UX lebih natural untuk driver yang sibuk
-- Tidak perlu hafal command
-- Contoh: "bensin 20rb" → intent: catat_pengeluaran, kategori: bensin, jumlah: 20000
-
-**Trade-off**: Lebih kompleks dari sisi engineering, butuh prompt engineering yang baik.
+**Trade-off**: Data scattered per user (can't easily query cross-user). For a personal finance app, this is actually ideal.
 
 ---
 
-### Keputusan 6: Satu Durable Object per User
+### Decision 3: Workers AI + DeepSeek Fallback
 
-**Keputusan**: Setiap Telegram user mendapat Durable Object sendiri (ID = Telegram user ID).
+**Decision**: Workers AI as primary AI, DeepSeek API as fallback.
 
-**Alasan**:
-- Isolasi data otomatis antar user
-- Tidak ada race condition antar user
-- Skala natural — setiap user punya SQLite database sendiri
-- Cocok untuk aplikasi keuangan personal
+**Rationale**:
+- Workers AI: free 10,000 Neurons/day, sufficient for lightweight intent detection
+- When approaching limit (~80%), automatically fallback to DeepSeek
+- DeepSeek is cheap and reliable as backup
+- Two providers = never completely down
+
+**Trade-off**: Need to track daily Neuron usage to trigger fallback.
 
 ---
 
-### Keputusan 7: JavaScript (ES Modules)
+### Decision 4: Telegram Bot with Webhook Mode
 
-**Keputusan**: Menggunakan JavaScript murni (bukan TypeScript) untuk fase awal.
+**Decision**: Use Telegram Bot API with webhook, not long polling.
 
-**Alasan**:
-- Lebih cepat untuk prototyping
-- Native di Cloudflare Workers tanpa build step
-- Bisa migrasi ke TypeScript nanti jika perlu
+**Rationale**:
+- Webhook fits serverless architecture (Workers)
+- No persistent connection needed
+- More efficient — only invoked when a message arrives
 
-**Trade-off**: Tidak ada type safety. Bisa ditambahkan TypeScript di fase berikutnya.
+---
+
+### Decision 5: Intent Detection, Not Command-Based
+
+**Decision**: User sends natural language messages, bot detects intent via AI.
+
+**Rationale**:
+- More natural UX for a busy driver
+- No need to memorize commands
+- Example: "bensin 20rb" → intent: record_expense, category: fuel, amount: 20000
+
+**Trade-off**: More complex engineering, requires good prompt design.
+
+---
+
+### Decision 6: One Durable Object per User
+
+**Decision**: Each Telegram user gets their own Durable Object (ID = Telegram user ID).
+
+**Rationale**:
+- Automatic data isolation between users
+- No race conditions between users
+- Natural scaling — each user has their own SQLite database
+- Perfect for personal finance app
+
+---
+
+### Decision 7: JavaScript (ES Modules)
+
+**Decision**: Use plain JavaScript (not TypeScript) for the initial phase.
+
+**Rationale**:
+- Faster for prototyping
+- Native in Cloudflare Workers without build step
+- Can migrate to TypeScript later if needed
+
+**Trade-off**: No type safety. TypeScript can be added in a later phase.
+
+---
+
+## 2026-02-12 — Planning Revision
+
+### Decision 8: OCR via ocr.space API (Not Workers AI)
+
+**Decision**: Use ocr.space free API for OCR instead of Cloudflare Workers AI vision model.
+
+**Rationale**:
+- ocr.space provides a free tier (25,000 requests/month) specifically designed for OCR
+- Does NOT consume Workers AI Neurons — this is critical because Neurons are the main bottleneck (only 10K/day)
+- Separating OCR from intent detection means more Neurons available for AI tasks
+- API key already obtained
+- Simple REST API, easy to integrate
+
+**Trade-off**: External dependency (ocr.space uptime), 1MB file size limit on free tier, but acceptable for receipt/screenshot photos.
+
+---
+
+### Decision 9: English Code, Indonesian Bot Responses
+
+**Decision**: All code (variables, functions, comments, logs) must be in English. Telegram bot messages to the user are in Indonesian.
+
+**Rationale**:
+- English code is industry standard and more readable
+- AI tools generate better code in English
+- Stack Overflow / debugging is easier with English variable names
+- The end-user is Indonesian, so bot messages must be in Indonesian for UX
+
+**Trade-off**: Developer (non-programmer) is more comfortable in Indonesian, but AI handles the code generation anyway.
+
+---
+
+### Decision 10: Loan Tracking Redesign (Pinjol-Focused)
+
+**Decision**: Replace simple person-to-person debt tracking with a full pinjol (online lending) installment tracking system.
+
+**Rationale**:
+- Real use case is tracking multiple online lending platforms (Shopee Pinjam, SPayLater, SeaBank, Kredivo)
+- Each platform has different due dates, late fee rules, and installment amounts
+- Need to track: loan info (parent) + installment schedule (children)
+- Database redesigned: `debts` table replaced with `loans` + `installments` tables
+- See `docs/DEBT-STUDY-CASE.md` for the real data that drove this decision
+
+**Trade-off**: More complex database and feature logic, but this is the core value of the app.
+
+---
+
+### Decision 11: Pre-Generated Installment Rows
+
+**Decision**: When a loan is registered, all installment rows are generated upfront (not on-demand).
+
+**Rationale**:
+- Makes it easy to query "what's due this month" or "what's the next payment"
+- Supports variable last installment amounts (common in pinjol)
+- Supports pre-marking installments as paid (for loans taken before bot existed)
+- Simple SQL queries for dashboard and reports
+
+**Trade-off**: More rows in database upfront, but SQLite handles this easily with indexes.

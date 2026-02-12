@@ -9,7 +9,10 @@ export type PendingAction =
   | "confirm_ocr"
   | "confirm_income"
   | "confirm_expense"
-  | "register_loan_step"
+  | "confirm_loan"
+  | "loan_fill_missing"
+  | "loan_edit_select"
+  | "loan_edit_field"
   | "confirm_payment"
   | "edit_transaction";
 

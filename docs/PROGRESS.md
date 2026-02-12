@@ -8,7 +8,7 @@
 ## Current Phase: ✅ PLANNING COMPLETE → Ready for Development
 
 **Last Updated**: 2026-02-12
-**Last Session Summary**: Consistency audit — added .gitignore, fixed CI workflows (npm ci → npm install), updated README structure, clarified Decision 7, added GitHub Actions to LIMITS.md and ARCHITECTURE.md.
+**Last Session Summary**: Post-discussion docs update — AI model changed to qwen3-30b-a3b-fp8, schema versioning added, conversation state designed, Mini App planned for Phase 4.
 
 ---
 
@@ -18,13 +18,13 @@
 |---|---|---|
 | Project structure | ✅ Done | Folders and base files created |
 | README.md | ✅ Done | English, TypeScript, all latest decisions |
-| Architecture design | ✅ Done | Includes ocr.space, CI/CD in tech stack |
-| Database schema | ✅ Done | loans + installments tables, 10 expense categories |
+| Architecture design | ✅ Done | Includes ocr.space, CI/CD, conversation state |
+| Database schema | ✅ Done | loans + installments tables, 10 expense categories, schema versioning |
 | Feature list | ✅ Done | F03 expanded to 7 sub-features for pinjol |
 | API flow design | ✅ Done | 2-step OCR flow, TypeScript code examples |
 | Decisions log | ✅ Done | 13 decisions documented |
 | Limits & strategy | ✅ Done | All services covered incl. GitHub Actions |
-| AI Context file | ✅ Done | `docs/AI-CONTEXT.md` |
+| AI Context file | ✅ Done | `docs/AI-CONTEXT.md` with model info |
 | Progress tracker | ✅ Done | This file |
 | Debt study case doc | ✅ Done | `docs/DEBT-STUDY-CASE.md` with 5 platform data |
 | Changelog | ✅ Done | All sessions documented |
@@ -87,27 +87,30 @@ Phased approach — build foundation first, then layer features:
 
 ### Phase 1: Foundation
 1. **F09 — User Onboarding** + **F10 — Basic Commands** → Telegram webhook handler, `/start`, `/help`
-2. **Database initialization** → Create all 6 tables on first access
+2. **Database initialization** → Create all tables on first access with schema versioning
+3. **Conversation state** → Basic pending_action infrastructure for multi-step flows
 
 ### Phase 2: Core Recording
-3. **F01 — Record Income** → Simple data recording
-4. **F02 — Record Expenses** → Simple data recording
-5. **F06 — Intent Detection** → AI-powered message parsing
-6. **F08 — AI Fallback** → Workers AI → DeepSeek switch
+4. **F01 — Record Income** → Simple data recording with confirmation flow
+5. **F02 — Record Expenses** → Simple data recording with confirmation flow
+6. **F06 — Intent Detection** → AI-powered message parsing via `@cf/qwen/qwen3-30b-a3b-fp8`
+7. **F08 — AI Fallback** → Workers AI → DeepSeek switch
 
 ### Phase 3: Loan Tracking (Critical)
-7. **F03a — Register Loan** → Add loan + generate installments
-8. **F03b — Record Payment** → Mark installments as paid
-9. **F03c — Loan Dashboard** → View all loans and status
-10. **F03d — Due Date Alerts** → Countdown warnings
-11. **F03e — Late Fee Calculator** → Calculate penalties
-12. **F03f — Monthly Summary** → Aggregate obligations
-13. **F03g — Payoff Progress** → Track overall progress
+8. **F03a — Register Loan** → Add loan + generate installments (multi-step via chat)
+9. **F03b — Record Payment** → Mark installments as paid
+10. **F03c — Loan Dashboard** → View all loans and status
+11. **F03d — Due Date Alerts** → Countdown warnings
+12. **F03e — Late Fee Calculator** → Calculate penalties
+13. **F03f — Monthly Summary** → Aggregate obligations
+14. **F03g — Payoff Progress** → Track overall progress
 
 ### Phase 4: Advanced
-14. **F04 — Income Targets** → Goal setting
-15. **F05 — OCR** → Receipt/screenshot reading
-16. **F07 — Financial Reports** → Comprehensive summaries
+15. **F04 — Income Targets** → Goal setting
+16. **F05 — OCR** → Receipt/screenshot reading (chat-based confirmation)
+17. **F07 — Financial Reports** → Comprehensive summaries
+18. **F11 — Export CSV** → Data export for backup
+19. **Telegram Mini App** → Bulk OCR review, loan registration form, table editing UI (replaces chat-based multi-step for complex operations)
 
 ---
 
@@ -132,9 +135,10 @@ Phased approach — build foundation first, then layer features:
 2. Add webhook secret validation
 3. Implement `/start` command with welcome message
 4. Implement `/help` command with usage guide
-5. Setup Durable Object with SQLite table initialization (all 6 tables)
-6. Test webhook locally with `npx wrangler dev`
-7. Create PR to `main`
+5. Setup Durable Object with SQLite table initialization (all tables + schema versioning)
+6. Implement basic conversation state infrastructure (pending_action check)
+7. Test webhook locally with `npx wrangler dev`
+8. Create PR to `main`
 
 ---
 
@@ -149,3 +153,4 @@ Phased approach — build foundation first, then layer features:
 | 2026-02-12 | #5 | Language change: JavaScript → TypeScript. All docs, config, entry point updated |
 | 2026-02-12 | #6 | Branching strategy + CI/CD + tsconfig. Removed "write simple" constraint. Decisions #12–13 |
 | 2026-02-12 | #7 | Consistency audit: added .gitignore, fixed CI (npm install), updated README/DECISIONS/LIMITS/ARCHITECTURE |
+| 2026-02-12 | #8 | Post-discussion updates: AI model → qwen3-30b-a3b-fp8 (3.4× cheaper), schema versioning added to DATABASE.md, conversation state design added to ARCHITECTURE.md, Mini App planned for Phase 4, Hybrid approach (chat + Mini App) approved |

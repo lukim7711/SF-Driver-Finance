@@ -27,7 +27,7 @@ export async function detectIntentWorkersAI(
 ): Promise<IntentResultWithProvider> {
   const prompt = buildIntentPrompt(userMessage, todayDate);
 
-  const response = await ai.run(PRIMARY_MODEL as BaseAiTextGenerationModels, {
+  const response = await ai.run(PRIMARY_MODEL as BaseAiTextGeneration["postProcessedOutputs"] extends never ? never : Parameters<typeof ai.run>[0], {
     messages: [
       {
         role: "user",

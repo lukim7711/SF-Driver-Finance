@@ -12,6 +12,8 @@ const LATEST_SCHEMA_VERSION = 1;
  * Initialize the database: create meta table, check version, run migrations.
  * Called on every Durable Object initialization (alarm or fetch).
  *
+ * Uses .toArray() instead of .one() because .one() throws when no rows exist.
+ *
  * @param db - The SqlStorage instance from the Durable Object
  */
 export function initializeDatabase(db: SqlStorage): void {
@@ -22,10 +24,10 @@ export function initializeDatabase(db: SqlStorage): void {
   )`);
 
   // Step 2: Read current schema version
-  const row = db.exec(
+  const rows = db.exec(
     "SELECT value FROM _schema_meta WHERE key = 'schema_version'"
-  ).one();
-  const currentVersion = row ? parseInt(row["value"] as string, 10) : 0;
+  ).toArray();
+  const currentVersion = rows.length > 0 ? parseInt(rows[0]!["value"] as string, 10) : 0;
 
   // Step 3: Apply migrations or fresh install
   if (currentVersion === 0) {

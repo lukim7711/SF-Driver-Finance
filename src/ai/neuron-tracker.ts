@@ -3,8 +3,8 @@
  * Tracks daily Workers AI Neuron consumption in a SQLite table.
  * Used to decide when to switch from Workers AI to DeepSeek fallback.
  *
- * Each user's DO tracks its own usage. The threshold check is local,
- * but since this is a personal-use bot (1 user), it effectively tracks global usage.
+ * Uses .toArray() instead of .one() because .one() throws on empty results
+ * in Cloudflare's SqlStorage API.
  */
 
 /**
@@ -21,11 +21,11 @@ export function ensureNeuronTable(db: SqlStorage): void {
  * Get the current Neuron count for today.
  */
 export function getNeuronCount(db: SqlStorage, todayDate: string): number {
-  const row = db.exec(
+  const rows = db.exec(
     "SELECT count FROM _neuron_usage WHERE date = ?",
     todayDate
-  ).one();
-  return row ? (row["count"] as number) : 0;
+  ).toArray();
+  return rows.length > 0 ? (rows[0]!["count"] as number) : 0;
 }
 
 /**

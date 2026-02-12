@@ -1,10 +1,10 @@
 /**
  * Conversation State Management
  * Stores and retrieves multi-step conversation state in the Durable Object.
- * State is stored as an in-memory property on the DO instance and also
- * persisted in a dedicated _conversation_state SQLite row for crash recovery.
- *
  * State is checked BEFORE AI intent detection to save Neurons.
+ *
+ * Uses .toArray() instead of .one() because .one() throws on empty results
+ * in Cloudflare's SqlStorage API.
  */
 
 import type { ConversationState, PendingAction } from "../types/conversation";
@@ -27,14 +27,14 @@ export function ensureConversationStateTable(db: SqlStorage): void {
  * Get the current conversation state. Returns null if no state or if expired.
  */
 export function getConversationState(db: SqlStorage): ConversationState | null {
-  const row = db.exec(
+  const rows = db.exec(
     "SELECT state FROM _conversation_state WHERE key = 'current'"
-  ).one();
+  ).toArray();
 
-  if (!row) return null;
+  if (rows.length === 0) return null;
 
   try {
-    const state = JSON.parse(row["state"] as string) as ConversationState;
+    const state = JSON.parse(rows[0]!["state"] as string) as ConversationState;
 
     // Check if state has expired
     if (new Date(state.expires_at) < new Date()) {
@@ -84,11 +84,11 @@ export function setConversationState(
  * Returns true if there was a state to clear, false if already empty.
  */
 export function clearConversationState(db: SqlStorage): boolean {
-  const existing = db.exec(
+  const rows = db.exec(
     "SELECT key FROM _conversation_state WHERE key = 'current'"
-  ).one();
+  ).toArray();
 
-  if (existing) {
+  if (rows.length > 0) {
     db.exec("DELETE FROM _conversation_state WHERE key = 'current'");
     return true;
   }

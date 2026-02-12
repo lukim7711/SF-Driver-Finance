@@ -1,6 +1,9 @@
 /**
  * Income Database Operations
  * Handles recording and querying delivery earnings.
+ *
+ * Uses .toArray() instead of .one() because .one() throws on empty results
+ * in Cloudflare's SqlStorage API.
  */
 
 /** Represents an income row from the database */
@@ -31,18 +34,19 @@ export function recordIncome(
     note
   );
 
-  // Get the inserted row
-  const row = db.exec(
-    "SELECT id, amount, type, note, date, created_at FROM income ORDER BY id DESC LIMIT 1"
-  ).one();
+  // Get the inserted row using last_insert_rowid()
+  const rows = db.exec(
+    "SELECT id, amount, type, note, date, created_at FROM income WHERE rowid = last_insert_rowid()"
+  ).toArray();
 
+  const row = rows[0]!;
   return {
-    id: row!["id"] as number,
-    amount: row!["amount"] as number,
-    type: row!["type"] as string,
-    note: row!["note"] as string | null,
-    date: row!["date"] as string,
-    created_at: row!["created_at"] as string,
+    id: row["id"] as number,
+    amount: row["amount"] as number,
+    type: row["type"] as string,
+    note: row["note"] as string | null,
+    date: row["date"] as string,
+    created_at: row["created_at"] as string,
   };
 }
 

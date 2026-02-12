@@ -1,6 +1,9 @@
 /**
  * Expense Database Operations
  * Handles recording and querying operational and household expenses.
+ *
+ * Uses .toArray() instead of .one() because .one() throws on empty results
+ * in Cloudflare's SqlStorage API.
  */
 
 import type { ExpenseCategory } from "../types/intent";
@@ -47,18 +50,19 @@ export function recordExpense(
     note
   );
 
-  // Get the inserted row
-  const row = db.exec(
-    "SELECT id, amount, category, note, date, created_at FROM expenses ORDER BY id DESC LIMIT 1"
-  ).one();
+  // Get the inserted row using last_insert_rowid()
+  const rows = db.exec(
+    "SELECT id, amount, category, note, date, created_at FROM expenses WHERE rowid = last_insert_rowid()"
+  ).toArray();
 
+  const row = rows[0]!;
   return {
-    id: row!["id"] as number,
-    amount: row!["amount"] as number,
-    category: row!["category"] as string,
-    note: row!["note"] as string | null,
-    date: row!["date"] as string,
-    created_at: row!["created_at"] as string,
+    id: row["id"] as number,
+    amount: row["amount"] as number,
+    category: row["category"] as string,
+    note: row["note"] as string | null,
+    date: row["date"] as string,
+    created_at: row["created_at"] as string,
   };
 }
 

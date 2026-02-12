@@ -14,19 +14,9 @@ export interface UserRow {
 }
 
 /**
- * Get user by Telegram ID. Returns null if user is not registered.
+ * Map a raw DB row to a typed UserRow.
  */
-export function getUserByTelegramId(
-  db: SqlStorage,
-  telegramId: string
-): UserRow | null {
-  const row = db.exec(
-    "SELECT id, telegram_id, name, timezone, created_at, updated_at FROM users WHERE telegram_id = ?",
-    telegramId
-  ).one();
-
-  if (!row) return null;
-
+function rowToUser(row: Record<string, SqlStorageValue>): UserRow {
   return {
     id: row["id"] as number,
     telegram_id: row["telegram_id"] as string,
@@ -35,6 +25,23 @@ export function getUserByTelegramId(
     created_at: row["created_at"] as string,
     updated_at: row["updated_at"] as string,
   };
+}
+
+/**
+ * Get user by Telegram ID. Returns null if user is not registered.
+ * Uses .toArray() instead of .one() because .one() throws on empty results.
+ */
+export function getUserByTelegramId(
+  db: SqlStorage,
+  telegramId: string
+): UserRow | null {
+  const rows = db.exec(
+    "SELECT id, telegram_id, name, timezone, created_at, updated_at FROM users WHERE telegram_id = ?",
+    telegramId
+  ).toArray();
+
+  if (rows.length === 0) return null;
+  return rowToUser(rows[0]!);
 }
 
 /**

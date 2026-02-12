@@ -23,15 +23,29 @@ This document records all relevant free tier limits and strategies to maximize u
 
 **Important**: OCR does NOT use Workers AI. OCR goes through ocr.space API.
 
-**Estimate per request**:
-- Intent detection (text): ~100-300 Neurons (LLM inference)
+### Model: `@cf/qwen/qwen3-30b-a3b-fp8`
+
+MoE (Mixture of Experts) — 30B total params, 3B active per request. Costs ~4.4 Neurons per request (~300 token input, ~100 token output).
+
+**Why this model?**
+- MoE architecture: 30B quality at 3B price
+- Strong multilingual (including Indonesian) — trained on Asian language data
+- Function calling support for structured JSON output
+- 3.4× cheaper than the previous `llama-3.1-8b-instruct` (15.2 Neurons/req)
 
 **Daily capacity estimate (intent detection only)**:
-- Conservative (300 Neurons/req): ~33 requests/day
-- Optimistic (100 Neurons/req): ~100 requests/day
-- With fallback at 80%: 26-80 free requests, then DeepSeek kicks in
+- Per request: ~4.4 Neurons
+- **Free requests/day: ~2,254** (10,000 ÷ 4.4)
+- With fallback at 80% (8,000 Neurons): ~1,818 free requests, then DeepSeek kicks in
 
-⚠️ **Still the main bottleneck**, but significantly better now that OCR is separated.
+**Comparison with previous model:**
+
+| Model | Neurons/req | Free req/day | Status |
+|---|---|---|---|
+| `@cf/qwen/qwen3-30b-a3b-fp8` | ~4.4 | ~2,254 | ✅ Current |
+| `@cf/meta/llama-3.1-8b-instruct` | ~15.2 | ~658 | ❌ Previous (retired) |
+
+**Alternative model to test later**: `@cf/ibm-granite/granite-4.0-h-micro` (~1.5 Neurons/req, ~6,764 free req/day). Smaller model, may be less accurate for Indonesian natural language.
 
 ## Cloudflare Durable Objects
 
@@ -108,7 +122,7 @@ Check daily Neuron counter
 - Use shortest possible prompts that are still accurate
 - Cache prompt templates (don't regenerate per request)
 - Use lightweight but accurate models:
-  - Workers AI: `@cf/meta/llama-3.1-8b-instruct` (lightweight, sufficient for intent)
+  - Workers AI: `@cf/qwen/qwen3-30b-a3b-fp8` (~4.4 Neurons/req, MoE 30B quality)
   - DeepSeek: `deepseek-chat` (cheap, accurate)
 
 ### 3. Command Shortcut (Bypass AI)
@@ -134,17 +148,19 @@ Since OCR uses ocr.space (not Workers AI):
 
 - If user sends many images, process one by one but limit to max 5 images per session
 - Each image = 1 ocr.space request + 1 AI parsing request
-- Daily estimate: 5 images × 150 Neurons (text parsing) = 750 Neurons for OCR-related AI
+- Daily estimate: 5 images × 4.4 Neurons (text parsing) = ~22 Neurons for OCR-related AI
 
 ### 6. Daily Budget Estimate
 
 | Scenario | Workers AI Neurons | DeepSeek | ocr.space | Est. Cost |
 |---|---|---|---|---|
-| 1 user, 50 msgs, 3 OCR | ~5,450 | 0 | 3 | Free |
-| 1 user, 100 msgs, 5 OCR | ~8,750 | ~20 req | 5 | ~$0.001 |
-| 3 users, 50 msgs each, 3 OCR each | ~8,000+ | ~50 req | 9 | ~$0.002 |
+| 1 user, 50 msgs, 3 OCR | ~233 | 0 | 3 | Free |
+| 1 user, 100 msgs, 5 OCR | ~462 | 0 | 5 | Free |
+| 3 users, 50 msgs each, 3 OCR each | ~699 | 0 | 9 | Free |
+| 10 users, 100 msgs each, 5 OCR each | ~4,620 | 0 | 50 | Free |
+| Extreme: 20 users, 100 msgs each | ~8,800 | ~200 req | 60 | ~$0.008 |
 
-**Conclusion**: For 1-3 active users, DeepSeek fallback cost is minimal (~$0.10/month or less). OCR is effectively free.
+**Conclusion**: With the new `qwen3-30b-a3b-fp8` model, even 10+ active users stay within the free tier. DeepSeek fallback is only needed in extreme usage scenarios. This is a massive improvement over the previous model (which could only handle ~33-100 requests before needing fallback).
 
 ---
 

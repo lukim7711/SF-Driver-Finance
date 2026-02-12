@@ -19,7 +19,7 @@ Personal finance management app for **ShopeeFood/SPX Express Drivers** running a
 |---|---|
 | Runtime | Cloudflare Workers (Free Tier) |
 | Database | Durable Objects + SQLite storage |
-| AI Primary | Cloudflare Workers AI (intent detection only) |
+| AI Primary | Workers AI — `@cf/qwen/qwen3-30b-a3b-fp8` (intent detection only) |
 | AI Fallback | DeepSeek API |
 | OCR | ocr.space API (free tier) |
 | Bot Platform | Telegram Bot API (webhook mode) |
@@ -39,11 +39,11 @@ SF-Driver-Finance/
 ├── docs/
 │   ├── AI-CONTEXT.md         # AI entry point (read this first)
 │   ├── PROGRESS.md           # Current status & next steps
-│   ├── ARCHITECTURE.md       # System architecture
-│   ├── DATABASE.md           # Database schema (6 tables)
+│   ├── ARCHITECTURE.md       # System architecture + conversation state
+│   ├── DATABASE.md           # Database schema (7 tables incl. schema versioning)
 │   ├── FEATURES.md           # Feature list & status
 │   ├── API-FLOW.md           # Request flow diagrams
-│   ├── DECISIONS.md          # Design decision log (13 decisions)
+│   ├── DECISIONS.md          # Design decision log (17 decisions)
 │   ├── LIMITS.md             # Free tier limits & strategies
 │   ├── DEBT-STUDY-CASE.md    # Real-world loan data reference
 │   └── CHANGELOG.md          # Change history

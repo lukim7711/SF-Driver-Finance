@@ -52,7 +52,36 @@ function getTodayDate(): string {
 }
 
 /**
- * FinanceDurableObject \u2014 per-user data storage and message handling.
+ * Keywords that indicate the user is trying to start a NEW intent
+ * rather than answering the current wizard question.
+ */
+const INTENT_KEYWORDS = [
+  // loan/debt
+  "hutang", "pinjam", "pinjol", "daftar pinjaman", "cicilan",
+  // income
+  "dapet", "dapat", "income", "penghasilan",
+  // expense
+  "bensin", "parkir", "makan", "rokok", "pulsa", "servis", "listrik",
+  // view/report
+  "lihat", "cek", "status", "laporan", "rekap", "report",
+  // other
+  "target", "bantuan",
+];
+
+/**
+ * Detect if user input looks like a new intent rather than a wizard answer.
+ * Heuristic: must have 2+ words AND contain a known intent keyword.
+ * Single words/numbers pass through to the wizard handler.
+ */
+function looksLikeNewIntent(text: string): boolean {
+  const lower = text.toLowerCase();
+  const words = lower.split(/\s+/);
+  if (words.length < 2) return false;
+  return INTENT_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+/**
+ * FinanceDurableObject — per-user data storage and message handling.
  */
 export class FinanceDurableObject implements DurableObject {
   private state: DurableObjectState;
@@ -76,7 +105,7 @@ export class FinanceDurableObject implements DurableObject {
   }
 
   /**
-   * Main fetch handler \u2014 receives routed requests from the Worker.
+   * Main fetch handler — receives routed requests from the Worker.
    */
   async fetch(request: Request): Promise<Response> {
     try {
@@ -100,7 +129,7 @@ export class FinanceDurableObject implements DurableObject {
 
   /**
    * Handle an incoming text/photo message from the user.
-   * Flow: Command \u2192 Cancel \u2192 Conversation State \u2192 AI Intent Detection \u2192 Route
+   * Flow: Command → Cancel → Conversation State → AI Intent Detection → Route
    */
   private async handleMessage(message: TelegramMessage): Promise<void> {
     const chatId = message.chat.id;
@@ -140,7 +169,7 @@ export class FinanceDurableObject implements DurableObject {
       }
     }
 
-    // Step 2: Check \"batal\" keyword
+    // Step 2: Check "batal" keyword
     if (text.toLowerCase() === "batal") {
       const hadState = clearConversationState(this.db);
       await handleCancelCommand(token, chatId, hadState);
@@ -155,16 +184,47 @@ export class FinanceDurableObject implements DurableObject {
       switch (action) {
         // Loan: mini-wizard for missing fields
         case "loan_fill_missing": {
+          // Guard: detect if user is trying to start a new intent
+          if (looksLikeNewIntent(text)) {
+            const platform = (conversationState.pending_data.platform as string) || "pinjaman";
+            await sendText(
+              token,
+              chatId,
+              `\u26a0\ufe0f Kamu masih dalam proses daftar <b>${platform}</b>.\n\n` +
+              `Ketik /batal dulu untuk membatalkan, lalu mulai yang baru.`
+            );
+            return;
+          }
           await handleMissingFieldInput(token, chatId, this.db, text, todayDate);
           return;
         }
         // Loan: edit mode — select which field
         case "loan_edit_select": {
+          if (looksLikeNewIntent(text)) {
+            const platform = (conversationState.pending_data.platform as string) || "pinjaman";
+            await sendText(
+              token,
+              chatId,
+              `\u26a0\ufe0f Kamu masih dalam proses edit <b>${platform}</b>.\n\n` +
+              `Ketik /batal dulu untuk membatalkan, lalu mulai yang baru.`
+            );
+            return;
+          }
           await handleEditSelection(token, chatId, this.db, text);
           return;
         }
         // Loan: edit mode — input new value
         case "loan_edit_field": {
+          if (looksLikeNewIntent(text)) {
+            const platform = (conversationState.pending_data.platform as string) || "pinjaman";
+            await sendText(
+              token,
+              chatId,
+              `\u26a0\ufe0f Kamu masih dalam proses edit <b>${platform}</b>.\n\n` +
+              `Ketik /batal dulu untuk membatalkan, lalu mulai yang baru.`
+            );
+            return;
+          }
           await handleEditFieldInput(token, chatId, this.db, text, todayDate);
           return;
         }

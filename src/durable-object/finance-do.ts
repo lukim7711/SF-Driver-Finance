@@ -3,13 +3,13 @@
  * Each user gets their own Durable Object instance (keyed by Telegram user ID).
  * Contains SQLite database for all financial data and conversation state.
  *
- * Phase 2: Added AI intent detection, income/expense recording with
- * confirmation flows via inline keyboard, and Neuron usage tracking.
+ * Phase 3: Added loan registration with multi-step flow (F03a).
  */
 
 import type { Env } from "../index";
 import type { TelegramMessage, TelegramCallbackQuery } from "../types/telegram";
 import type { IncomeParams, ExpenseParams } from "../types/intent";
+import type { LoanRegistrationData, LateFeeType } from "../types/loan";
 import { initializeDatabase } from "../database/schema";
 import {
   ensureConversationStateTable,
@@ -24,6 +24,12 @@ import {
 } from "../handlers/commands";
 import { handleIncomeConfirmation, processIncomeConfirmed } from "../handlers/income";
 import { handleExpenseConfirmation, processExpenseConfirmed } from "../handlers/expense";
+import {
+  startLoanRegistration,
+  handleLoanRegistrationStep,
+  handleLateFeeTypeSelection,
+  handleLateFeeValue,
+} from "../handlers/loan";
 import { detectIntent } from "../ai/intent-detector";
 import { ensureNeuronTable, getNeuronCount, incrementNeuronCount } from "../ai/neuron-tracker";
 import { sendText, answerCallbackQuery, editMessageText } from "../telegram/api";
@@ -138,9 +144,28 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // Step 3: Check conversation state (multi-step flow, no AI needed)
+    // Step 3: Check conversation state (multi-step flow)
     const conversationState = getConversationState(this.db);
     if (conversationState) {
+      const action = conversationState.pending_action;
+
+      // Handle loan registration multi-step flow
+      if (action === "register_loan_step") {
+        const data = conversationState.pending_data as LoanRegistrationData;
+        const step = data.step ?? 1;
+
+        // Step 8 is late fee value input
+        if (step === 8) {
+          await handleLateFeeValue(token, chatId, this.db, text, todayDate);
+          return;
+        }
+
+        // Steps 1-7 handled by handleLoanRegistrationStep
+        await handleLoanRegistrationStep(token, chatId, this.db, text, todayDate);
+        return;
+      }
+
+      // Other conversation states: show "use buttons" message
       await sendText(
         token,
         chatId,
@@ -193,17 +218,17 @@ export class FinanceDurableObject implements DurableObject {
       }
 
       case "register_loan": {
-        await sendText(token, chatId, "\ud83c\udfe6 Fitur daftar pinjaman akan hadir di Phase 3!");
+        await startLoanRegistration(token, chatId, this.db);
         return;
       }
 
       case "pay_installment": {
-        await sendText(token, chatId, "\ud83c\udfe6 Fitur bayar cicilan akan hadir di Phase 3!");
+        await sendText(token, chatId, "\ud83c\udfe6 Fitur bayar cicilan akan hadir segera!");
         return;
       }
 
       case "view_loans": {
-        await sendText(token, chatId, "\ud83c\udfe6 Fitur lihat hutang akan hadir di Phase 3!");
+        await sendText(token, chatId, "\ud83c\udfe6 Fitur lihat hutang akan hadir segera!");
         return;
       }
 
@@ -232,6 +257,7 @@ export class FinanceDurableObject implements DurableObject {
           "Coba kirim seperti:\n" +
           "\u2022 <i>\"Dapet 150rb food\"</i> \u2014 catat pendapatan\n" +
           "\u2022 <i>\"Bensin 20rb\"</i> \u2014 catat pengeluaran\n" +
+          "\u2022 <i>\"Daftar pinjaman\"</i> \u2014 daftar hutang baru\n" +
           "\u2022 <i>\"Lihat hutang\"</i> \u2014 cek pinjaman\n\n" +
           "Ketik /help untuk panduan lengkap."
         );
@@ -242,7 +268,7 @@ export class FinanceDurableObject implements DurableObject {
 
   /**
    * Handle callback query from inline keyboard button press.
-   * Processes confirmation responses for income/expense recording.
+   * Processes confirmation responses for income/expense recording and loan registration.
    */
   private async handleCallbackQuery(query: TelegramCallbackQuery): Promise<void> {
     const token = this.env.TELEGRAM_BOT_TOKEN;
@@ -257,6 +283,19 @@ export class FinanceDurableObject implements DurableObject {
 
     // Get conversation state
     const state = getConversationState(this.db);
+
+    // Handle loan late fee type selection
+    if (data.startsWith("loan_late_fee:")) {
+      const lateFeeType = data.replace("loan_late_fee:", "") as LateFeeType;
+      await answerCallbackQuery(token, { callback_query_id: query.id });
+      await editMessageText(token, {
+        chat_id: chatId,
+        message_id: messageId,
+        text: query.message?.text ?? "Dipilih",
+      });
+      await handleLateFeeTypeSelection(token, chatId, this.db, lateFeeType);
+      return;
+    }
 
     switch (data) {
       case "confirm_income_yes": {

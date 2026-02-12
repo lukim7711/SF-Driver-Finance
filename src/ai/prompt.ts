@@ -29,9 +29,35 @@ INTENTS:
    Categories: "fuel" (bensin/BBM), "parking" (parkir), "meals" (makan/minum), "cigarettes" (rokok), "data_plan" (pulsa/data/kuota), "vehicle_service" (servis/bengkel/ban), "household" (rumah/belanja), "electricity" (listrik/air/PLN), "emergency" (darurat), "other" (lainnya)
    Examples: "bensin 20rb", "parkir 5000", "makan siang 15rb", "rokok 30rb", "servis motor 150rb"
 
-3. "register_loan" — user wants to add a new loan/debt
-   params: {}
-   Examples: "daftar hutang baru", "tambah pinjaman", "add loan"
+3. "register_loan" — user wants to add a new loan/debt. EXTRACT ALL loan details mentioned.
+   params: {
+     "platform": string|null,
+     "original_amount": number|null,
+     "total_with_interest": number|null,
+     "total_installments": number|null,
+     "monthly_amount": number|null,
+     "due_day": number|null,
+     "late_fee_type": "percent_monthly"|"percent_daily"|"fixed"|"none"|null,
+     "late_fee_value": number|null
+   }
+   IMPORTANT: Extract as many fields as possible from the message. Only use null for fields NOT mentioned.
+   - "platform" = lending platform name (Shopee Pinjam, SPayLater, SeaBank, Kredivo, Akulaku, etc.) or person name for personal loans
+   - "original_amount" = amount borrowed (pokok/pinjaman)
+   - "total_with_interest" = total amount to repay including interest
+   - "total_installments" = number of installments/months (tenor)
+   - "monthly_amount" = amount per installment
+   - "due_day" = day of month when payment is due (1-31)
+   - "late_fee_type" = "percent_monthly" (X% per month), "percent_daily" (X% per day), "fixed" (flat fee), "none" (no late fee)
+   - "late_fee_value" = the number for late fee (e.g., 5 for 5%, 50000 for fixed)
+   - If user says "no denda" or "tanpa denda", set late_fee_type="none", late_fee_value=0
+   - If user says "X% per bulan" or "X%/bln", set late_fee_type="percent_monthly", late_fee_value=X
+   - If user says "X% per hari", set late_fee_type="percent_daily", late_fee_value=X
+   Examples:
+   - "pinjol kredivo 5jt 12 bulan 500rb per bulan no denda" → platform="Kredivo", original_amount=5000000, total_installments=12, monthly_amount=500000, late_fee_type="none", late_fee_value=0
+   - "hutang shopee 3.5jt total 4.9jt 10x tanggal 13 denda 5%/bln" → platform="Shopee Pinjam", original_amount=3500000, total_with_interest=4900000, total_installments=10, due_day=13, late_fee_type="percent_monthly", late_fee_value=5
+   - "pinjam seabank 1.5jt 7 bulan 232rb tanggal 5 denda 0.25% per hari" → platform="SeaBank Pinjam", original_amount=1500000, total_installments=7, monthly_amount=232000, due_day=5, late_fee_type="percent_daily", late_fee_value=0.25
+   - "daftar hutang" → all params null (user just wants to start)
+   - "pinjam uang ke yono 500rb" → platform="Yono", original_amount=500000
 
 4. "pay_installment" — user paid a loan installment
    params: { "platform": string }

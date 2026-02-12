@@ -3,6 +3,8 @@
  * Defines the structure of AI-parsed intent results from user messages.
  */
 
+import type { LateFeeType } from "./loan";
+
 /** All supported intent identifiers */
 export type IntentName =
   | "record_income"
@@ -48,6 +50,22 @@ export interface ExpenseParams {
   date?: string;
 }
 
+/**
+ * Parameters extracted for loan registration.
+ * All fields optional — AI extracts what it can from natural language.
+ * Missing fields will be filled via mini-wizard or edit mode.
+ */
+export interface RegisterLoanParams {
+  platform?: string;
+  original_amount?: number;
+  total_with_interest?: number;
+  total_installments?: number;
+  monthly_amount?: number;
+  due_day?: number;
+  late_fee_type?: LateFeeType;
+  late_fee_value?: number;
+}
+
 /** Parameters extracted for loan payment */
 export interface PayInstallmentParams {
   platform: string;
@@ -61,7 +79,7 @@ export interface GenericParams {
 /** The result of AI intent detection */
 export interface IntentResult {
   intent: IntentName;
-  params: IncomeParams | ExpenseParams | PayInstallmentParams | GenericParams;
+  params: IncomeParams | ExpenseParams | RegisterLoanParams | PayInstallmentParams | GenericParams;
   confidence: number;
 }
 

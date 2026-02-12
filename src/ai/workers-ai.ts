@@ -11,6 +11,11 @@ import { parseIntentResponse } from "./parser";
 /** The primary AI model — MoE with 30B total params, 3B active (~4.4 Neurons/req) */
 const PRIMARY_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8";
 
+/** Workers AI text generation response shape */
+interface AiTextGenerationResponse {
+  response?: string;
+}
+
 /**
  * Detect intent using Cloudflare Workers AI (Qwen3 model).
  *
@@ -27,21 +32,23 @@ export async function detectIntentWorkersAI(
 ): Promise<IntentResultWithProvider> {
   const prompt = buildIntentPrompt(userMessage, todayDate);
 
-  const response = await ai.run(PRIMARY_MODEL as BaseAiTextGeneration["postProcessedOutputs"] extends never ? never : Parameters<typeof ai.run>[0], {
+  // The model string may not be in static type defs but works at runtime.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await (ai as any).run(PRIMARY_MODEL, {
     messages: [
       {
         role: "user",
         content: prompt,
       },
     ],
-  });
+  }) as AiTextGenerationResponse | string;
 
   // Extract text from response
   let responseText: string;
   if (typeof response === "string") {
     responseText = response;
   } else if (response && typeof response === "object" && "response" in response) {
-    responseText = (response as { response: string }).response ?? "";
+    responseText = response.response ?? "";
   } else {
     console.error("Unexpected Workers AI response format:", JSON.stringify(response));
     responseText = "";

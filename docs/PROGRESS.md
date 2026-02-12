@@ -5,10 +5,10 @@
 
 ---
 
-## Current Phase: ✅ PLANNING COMPLETE → Ready for Development
+## Current Phase: Phase 2 COMPLETE ✅ → Ready for Phase 3
 
-**Last Updated**: 2026-02-12
-**Last Session Summary**: Post-discussion docs update — AI model changed to qwen3-30b-a3b-fp8, schema versioning added, conversation state designed, Mini App planned for Phase 4.
+**Last Updated**: 2026-02-12  
+**Last Session Summary**: Phase 2 complete — AI intent detection (Workers AI + DeepSeek fallback), income recording with confirmation, expense recording with confirmation. All deployed and tested in Telegram.
 
 ---
 
@@ -40,44 +40,109 @@
 
 ## Implementation Status
 
-### Files Created
+### Source Files (21 files on `main`)
+
+#### Entry Point & Config
 
 | File | Status | Description |
 |---|---|---|
-| `src/index.ts` | 🔲 Placeholder | TypeScript entry point with Env interface, no logic yet |
-| `wrangler.jsonc` | ✅ Configured | DO binding, AI binding, vars, secrets |
-| `package.json` | ✅ Configured | wrangler + typescript + @cloudflare/workers-types |
-| `tsconfig.json` | ✅ Configured | Strict TypeScript for Cloudflare Workers |
-| `.github/workflows/ci.yml` | ✅ Configured | Type check on push to feature branches + PRs |
-| `.github/workflows/deploy.yml` | ✅ Configured | Auto-deploy to Cloudflare on merge to main |
-| `.gitignore` | ✅ Configured | node_modules, .wrangler, .dev.vars, dist, IDE files |
+| `src/index.ts` | ✅ Done | Worker entry point — webhook validation, DO routing for message + callback_query |
+| `wrangler.jsonc` | ✅ Done | DO binding, AI binding, vars, secrets |
+| `package.json` | ✅ Done | wrangler + typescript + @cloudflare/workers-types |
+| `tsconfig.json` | ✅ Done | Strict TypeScript for Cloudflare Workers |
+| `.github/workflows/ci.yml` | ✅ Done | Type check on push to feature branches + PRs |
+| `.github/workflows/deploy.yml` | ✅ Done | Auto-deploy to Cloudflare on merge to main |
+| `.gitignore` | ✅ Done | node_modules, .wrangler, .dev.vars, dist, IDE files |
+
+#### Telegram Layer (`src/telegram/`)
+
+| File | Status | Description |
+|---|---|---|
+| `src/telegram/api.ts` | ✅ Done | Bot API client: sendMessage, sendText, sendWithKeyboard, editMessageText, answerCallbackQuery |
+| `src/telegram/webhook.ts` | ✅ Done | Webhook secret validation via `X-Telegram-Bot-Api-Secret-Token` header |
+
+#### Type Definitions (`src/types/`)
+
+| File | Status | Description |
+|---|---|---|
+| `src/types/telegram.ts` | ✅ Done | TelegramUpdate, TelegramMessage, TelegramCallbackQuery, InlineKeyboardMarkup, SendMessageParams, etc. |
+| `src/types/conversation.ts` | ✅ Done | PendingAction union type (`confirm_ocr`, `confirm_income`, `confirm_expense`, `register_loan_step`, `confirm_payment`, `edit_transaction`), ConversationState interface |
+| `src/types/intent.ts` | ✅ Done | IntentType (10 intents), IncomeType, ExpenseCategory (10 categories), IncomeParams, ExpenseParams, IntentResult, IntentResultWithProvider |
+
+#### Durable Object (`src/durable-object/`)
+
+| File | Status | Description |
+|---|---|---|
+| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, message routing (command → cancel → conversation state → AI intent → route), callback query handling (confirm/cancel income/expense) |
+
+#### Database Layer (`src/database/`)
+
+| File | Status | Description |
+|---|---|---|
+| `src/database/schema.ts` | ✅ Done | Schema init + migration with `_schema_meta` version tracking. Creates 7 tables: users, income, expenses, loans, installments, targets, _schema_meta |
+| `src/database/user.ts` | ✅ Done | getUserByTelegramId, registerUser (upsert) |
+| `src/database/conversation.ts` | ✅ Done | ensureConversationStateTable, getConversationState, setConversationState, clearConversationState |
+| `src/database/income.ts` | ✅ Done | recordIncome, getTodayIncome (grouped by food/spx) |
+| `src/database/expense.ts` | ✅ Done | recordExpense, getTodayExpenses (grouped by category), CATEGORY_LABELS map |
+
+#### AI Layer (`src/ai/`)
+
+| File | Status | Description |
+|---|---|---|
+| `src/ai/prompt.ts` | ✅ Done | buildIntentPrompt — Indonesian NLP prompt with all 10 intents, expense categories, examples, and Rp shorthand parsing rules |
+| `src/ai/parser.ts` | ✅ Done | parseIntentResponse — extracts JSON from AI response (handles markdown code blocks, thinking tags), validates intent/params |
+| `src/ai/workers-ai.ts` | ✅ Done | detectIntentWorkersAI — Qwen3-30B-A3B via Workers AI binding. Handles both OpenAI chat completion format and simple response format |
+| `src/ai/deepseek.ts` | ✅ Done | detectIntentDeepSeek — DeepSeek chat API via fetch, used as paid fallback |
+| `src/ai/intent-detector.ts` | ✅ Done | detectIntent — orchestrator: uses Workers AI when Neurons < 80% threshold, falls back to DeepSeek on failure or budget exceeded |
+| `src/ai/neuron-tracker.ts` | ✅ Done | ensureNeuronTable, getNeuronCount, incrementNeuronCount — tracks daily Neuron usage in `_neuron_usage` SQLite table |
+
+#### Handlers (`src/handlers/`)
+
+| File | Status | Description |
+|---|---|---|
+| `src/handlers/commands.ts` | ✅ Done | handleStartCommand (welcome + register), handleHelpCommand (usage guide), handleCancelCommand |
+| `src/handlers/income.ts` | ✅ Done | handleIncomeConfirmation (show confirmation keyboard), processIncomeConfirmed (save + show today's totals), formatRupiah helper |
+| `src/handlers/expense.ts` | ✅ Done | handleExpenseConfirmation (show confirmation keyboard with category emoji), processExpenseConfirmed (save + show category breakdown) |
 
 ### Features Implementation
 
-| ID | Feature | Status | File(s) |
-|---|---|---|---|
-| F09 | User Onboarding | 🔲 Not Started | — |
-| F10 | Basic Commands | 🔲 Not Started | — |
-| F01 | Record Income | 🔲 Not Started | — |
-| F02 | Record Expenses | 🔲 Not Started | — |
-| F06 | Intent Detection | 🔲 Not Started | — |
-| F08 | AI Fallback | 🔲 Not Started | — |
-| F03a | Register Loan | 🔲 Not Started | — |
-| F03b | Record Installment Payment | 🔲 Not Started | — |
-| F03c | View Loan Dashboard | 🔲 Not Started | — |
-| F03d | Due Date Alerts | 🔲 Not Started | — |
-| F03e | Late Fee Calculator | 🔲 Not Started | — |
-| F03f | Monthly Obligation Summary | 🔲 Not Started | — |
-| F03g | Payoff Progress | 🔲 Not Started | — |
-| F04 | Income Targets | 🔲 Not Started | — |
-| F05 | OCR (ocr.space) | 🔲 Not Started | — |
-| F07 | Financial Reports | 🔲 Not Started | — |
+| ID | Feature | Status | Phase | Key Files |
+|---|---|---|---|---|
+| F09 | User Onboarding | ✅ Done | 1 | `database/user.ts`, `handlers/commands.ts` |
+| F10 | Basic Commands | ✅ Done | 1 | `handlers/commands.ts`, `durable-object/finance-do.ts` |
+| F06 | Intent Detection | ✅ Done | 2 | `ai/prompt.ts`, `ai/parser.ts`, `ai/intent-detector.ts` |
+| F08 | AI Fallback | ✅ Done | 2 | `ai/workers-ai.ts`, `ai/deepseek.ts`, `ai/intent-detector.ts`, `ai/neuron-tracker.ts` |
+| F01 | Record Income | ✅ Done | 2 | `handlers/income.ts`, `database/income.ts` |
+| F02 | Record Expenses | ✅ Done | 2 | `handlers/expense.ts`, `database/expense.ts` |
+| F03a | Register Loan | 🔲 Not Started | 3 | — |
+| F03b | Record Installment Payment | 🔲 Not Started | 3 | — |
+| F03c | View Loan Dashboard | 🔲 Not Started | 3 | — |
+| F03d | Due Date Alerts | 🔲 Not Started | 3 | — |
+| F03e | Late Fee Calculator | 🔲 Not Started | 3 | — |
+| F03f | Monthly Obligation Summary | 🔲 Not Started | 3 | — |
+| F03g | Payoff Progress | 🔲 Not Started | 3 | — |
+| F04 | Income Targets | 🔲 Not Started | 4 | — |
+| F05 | OCR (ocr.space) | 🔲 Not Started | 4 | — |
+| F07 | Financial Reports | 🔲 Not Started | 4 | — |
 
 ---
 
-## Known Issues & Bugs
+## Known Issues & Lessons Learned
 
-- **GitHub Secret needed**: `CLOUDFLARE_API_TOKEN` must be added to repo Settings → Secrets for auto-deploy to work.
+### Resolved Issues
+
+| Issue | Root Cause | Fix | Commit |
+|---|---|---|---|
+| Bot crashes on every message | Cloudflare `SqlStorage.one()` throws on empty results (doesn't return null) | Replaced all `.one()` with `.toArray()` + length check in 6 files | `38cb19e` |
+| Workers AI always falls back to DeepSeek | Qwen3-30B-A3B returns OpenAI chat completion format (`choices[0].message.content`) not simple `{ response }` | Added `extractResponseText()` handling both formats | `0375de1` |
+| TypeScript CI fails | `BaseAiTextGenerationModels` type doesn't exist in Cloudflare types | Used `(ai as any).run()` with explicit response type cast | `a47d625` |
+
+### Active Notes
+
+- **`CLOUDFLARE_API_TOKEN`** must be set in GitHub repo Settings → Secrets for auto-deploy.
+- **Durable Object SQLite**: Always use `.toArray()` instead of `.one()` when a query might return 0 rows.
+- **Workers AI response format**: Newer models (Qwen3) return OpenAI-compatible chat completion format, not the simple `{ response }` format shown in Cloudflare docs.
+- **CI runs twice per push to PR branch**: GitHub Actions fires both `push` and `pull_request` events. Can optimize later by restricting `push` trigger to `main` only.
 
 ---
 
@@ -85,18 +150,18 @@
 
 Phased approach — build foundation first, then layer features:
 
-### Phase 1: Foundation
-1. **F09 — User Onboarding** + **F10 — Basic Commands** → Telegram webhook handler, `/start`, `/help`
-2. **Database initialization** → Create all tables on first access with schema versioning
-3. **Conversation state** → Basic pending_action infrastructure for multi-step flows
+### Phase 1: Foundation ✅ COMPLETE
+1. ~~**F09 — User Onboarding** + **F10 — Basic Commands**~~ → Done
+2. ~~**Database initialization**~~ → Done (7 tables + schema versioning)
+3. ~~**Conversation state**~~ → Done (pending_action infrastructure)
 
-### Phase 2: Core Recording
-4. **F01 — Record Income** → Simple data recording with confirmation flow
-5. **F02 — Record Expenses** → Simple data recording with confirmation flow
-6. **F06 — Intent Detection** → AI-powered message parsing via `@cf/qwen/qwen3-30b-a3b-fp8`
-7. **F08 — AI Fallback** → Workers AI → DeepSeek switch
+### Phase 2: Core Recording ✅ COMPLETE
+4. ~~**F06 — Intent Detection**~~ → Done (Workers AI + Indonesian NLP prompt)
+5. ~~**F08 — AI Fallback**~~ → Done (Workers AI → DeepSeek at 80% Neurons)
+6. ~~**F01 — Record Income**~~ → Done (confirmation keyboard → save → today's totals)
+7. ~~**F02 — Record Expenses**~~ → Done (confirmation keyboard → save → category breakdown)
 
-### Phase 3: Loan Tracking (Critical)
+### Phase 3: Loan Tracking (Critical) ← NEXT
 8. **F03a — Register Loan** → Add loan + generate installments (multi-step via chat)
 9. **F03b — Record Payment** → Mark installments as paid
 10. **F03c — Loan Dashboard** → View all loans and status
@@ -110,7 +175,7 @@ Phased approach — build foundation first, then layer features:
 16. **F05 — OCR** → Receipt/screenshot reading (chat-based confirmation)
 17. **F07 — Financial Reports** → Comprehensive summaries
 18. **F11 — Export CSV** → Data export for backup
-19. **Telegram Mini App** → Bulk OCR review, loan registration form, table editing UI (replaces chat-based multi-step for complex operations)
+19. **Telegram Mini App** → Bulk OCR review, loan registration form, table editing UI
 
 ---
 
@@ -127,18 +192,14 @@ Phased approach — build foundation first, then layer features:
 
 ## Next Steps (For Next Session)
 
-**Prerequisite**: Add `CLOUDFLARE_API_TOKEN` secret to GitHub repo settings.
+**Start Phase 3: Loan Tracking** — the most complex and critical feature.
 
-**Start Phase 1: Foundation** (on branch `feat/f09-f10-foundation`)
-
-1. Implement Telegram webhook handler in `src/index.ts`
-2. Add webhook secret validation
-3. Implement `/start` command with welcome message
-4. Implement `/help` command with usage guide
-5. Setup Durable Object with SQLite table initialization (all tables + schema versioning)
-6. Implement basic conversation state infrastructure (pending_action check)
-7. Test webhook locally with `npx wrangler dev`
-8. Create PR to `main`
+Recommended approach:
+1. Read `docs/DEBT-STUDY-CASE.md` for real-world loan data
+2. Read `docs/DATABASE.md` for loans + installments table schema
+3. Implement F03a (Register Loan) first — multi-step conversation flow to collect loan details
+4. Then F03b (Record Payment) — mark installments as paid
+5. Then F03c (Loan Dashboard) — view all loans overview
 
 ---
 
@@ -153,4 +214,6 @@ Phased approach — build foundation first, then layer features:
 | 2026-02-12 | #5 | Language change: JavaScript → TypeScript. All docs, config, entry point updated |
 | 2026-02-12 | #6 | Branching strategy + CI/CD + tsconfig. Removed "write simple" constraint. Decisions #12–13 |
 | 2026-02-12 | #7 | Consistency audit: added .gitignore, fixed CI (npm install), updated README/DECISIONS/LIMITS/ARCHITECTURE |
-| 2026-02-12 | #8 | Post-discussion updates: AI model → qwen3-30b-a3b-fp8 (3.4× cheaper), schema versioning added to DATABASE.md, conversation state design added to ARCHITECTURE.md, Mini App planned for Phase 4, Hybrid approach (chat + Mini App) approved |
+| 2026-02-12 | #8 | Post-discussion updates: AI model → qwen3-30b-a3b-fp8, schema versioning, conversation state design, Mini App for Phase 4 |
+| 2026-02-12 | #9 | **Phase 1 complete**: F09 Onboarding + F10 Commands. Telegram webhook, /start, /help, /batal, DB schema init (7 tables), conversation state infra, Telegram API client. Deployed via PR #2 → PR #3 |
+| 2026-02-12 | #10 | **Phase 2 complete**: F06 Intent Detection + F08 AI Fallback + F01 Income + F02 Expense. AI prompt for Indonesian NLP, dual-provider orchestrator (Workers AI + DeepSeek), income/expense recording with inline keyboard confirmation, Neuron tracking. Fixed 3 runtime bugs: .one() crash, Workers AI response format, TS type error. Deployed via PR #4 + hotfixes |

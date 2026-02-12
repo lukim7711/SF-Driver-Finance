@@ -6,6 +6,56 @@ Format: `[Date] — Description`
 
 ---
 
+## 2026-02-12 — Phase 2: Core Recording + AI Intent Detection (Session #10)
+
+### Added (via PR #4: `feat/phase2-core-recording`)
+
+- `src/types/intent.ts` — Intent detection types: 10 intent types, IncomeParams, ExpenseParams, ExpenseCategory (10 categories)
+- `src/ai/prompt.ts` — AI prompt builder for Indonesian natural language → structured JSON intent detection
+- `src/ai/parser.ts` — AI response parser with JSON extraction (handles markdown code blocks, `<think>` tags), intent/param validation
+- `src/ai/workers-ai.ts` — Workers AI provider using Qwen3-30B-A3B model. Handles both OpenAI chat completion and simple response formats
+- `src/ai/deepseek.ts` — DeepSeek API fallback provider via standard fetch
+- `src/ai/intent-detector.ts` — Dual-provider orchestrator: Workers AI (primary, free) → DeepSeek (fallback, paid) at 80% daily Neuron threshold
+- `src/ai/neuron-tracker.ts` — Daily Neuron usage tracking in `_neuron_usage` SQLite table
+- `src/database/income.ts` — recordIncome, getTodayIncome (grouped by food/spx type)
+- `src/database/expense.ts` — recordExpense, getTodayExpenses (grouped by category), CATEGORY_LABELS with Indonesian names
+- `src/handlers/income.ts` — Income confirmation flow: show parsed data with inline keyboard → save on confirm → display today's food/spx/total breakdown
+- `src/handlers/expense.ts` — Expense confirmation flow: show parsed data with category emoji → save on confirm → display today's per-category breakdown
+
+### Updated
+
+- `src/durable-object/finance-do.ts` — Full Phase 2 message routing: command → cancel → conversation state → AI intent detection → route to handler. Added callback query handling for inline keyboard confirm/cancel.
+
+### Fixed (hotfixes after merge)
+
+- **`.one()` crash** — Replaced all `SqlStorage.one()` calls with `.toArray()` in 6 files. Cloudflare's `.one()` throws on empty results instead of returning null. (commit `38cb19e`)
+- **Workers AI response format** — Added support for OpenAI chat completion format (`choices[0].message.content`) returned by Qwen3-30B-A3B, in addition to simple `{ response }` format. (commit `0375de1`)
+- **TypeScript type error** — `BaseAiTextGenerationModels` doesn't exist in Cloudflare types. Used `(ai as any).run()` with explicit response type cast. (commits `c6fa98c`, `a47d625`)
+
+---
+
+## 2026-02-12 — Phase 1: Foundation (Session #9)
+
+### Added (via PR #2: `feat/phase1-foundation` → PR #3: `feat/phase1-foundation-v2`)
+
+- `src/index.ts` — Worker entry point: webhook validation, POST routing, user ID extraction (from message or callback_query), Durable Object routing with `waitUntil` fire-and-forget pattern, `/health` endpoint
+- `src/telegram/webhook.ts` — Webhook secret validation via `X-Telegram-Bot-Api-Secret-Token` header
+- `src/telegram/api.ts` — Telegram Bot API client: sendMessage (HTML parse mode), sendText, sendWithKeyboard, editMessageText, answerCallbackQuery
+- `src/types/telegram.ts` — Full Telegram type definitions: TelegramUser, TelegramChat, TelegramPhotoSize, TelegramCallbackQuery, TelegramMessage, TelegramUpdate, InlineKeyboardButton/Markup, SendMessageParams, AnswerCallbackQueryParams, EditMessageTextParams
+- `src/types/conversation.ts` — ConversationState interface, PendingAction union type (6 actions: confirm_ocr, confirm_income, confirm_expense, register_loan_step, confirm_payment, edit_transaction)
+- `src/durable-object/finance-do.ts` — Durable Object class with SQLite initialization, basic /start and /help command handling
+- `src/database/schema.ts` — Schema initialization with version tracking via `_schema_meta` table. Creates 7 tables: users, income, expenses, loans, installments, targets, _schema_meta
+- `src/database/user.ts` — getUserByTelegramId, registerUser (insert or update)
+- `src/database/conversation.ts` — ensureConversationStateTable, getConversationState, setConversationState, clearConversationState with auto-expiry (5 min)
+- `src/handlers/commands.ts` — handleStartCommand (welcome message in Indonesian), handleHelpCommand (usage guide with examples), handleCancelCommand
+
+### Notes
+
+- PR #2 had CI failure due to missing `Env` import in finance-do.ts. Fixed in PR #3 (recreated branch with all files).
+- Bot successfully deployed and responding to `/start` in Telegram after PR #3 merge.
+
+---
+
 ## 2026-02-12 — Post-Discussion Updates (Session #8)
 
 ### Revised

@@ -41,7 +41,7 @@ This is a **personal-use** application, not multi-tenant.
 OCR uses **ocr.space** free API (`https://ocr.space/`), NOT Cloudflare Workers AI image-to-text model. The API key is already obtained. This means:
 - OCR does NOT consume Workers AI Neurons
 - OCR requests go to ocr.space external API
-- Workers AI is used ONLY for intent detection (text LLM)
+- Workers AI is used ONLY for intent detection (text LLM) and parsing OCR-extracted text
 - This significantly reduces Workers AI Neuron consumption
 
 ## 4. Core Feature Overview
@@ -52,29 +52,29 @@ See `docs/FEATURES.md` for full details. Key features:
 |---|---|---|
 | F01 | Record Income (food/spx) | High |
 | F02 | Record Expenses (operational + household) | High |
-| F03 | Debt/Loan Tracking (pinjol multi-platform) | **Critical** |
+| F03 | Loan Tracking (pinjol multi-platform) | **Critical** |
 | F04 | Income Targets (daily/weekly/monthly) | Medium |
 | F05 | OCR Receipt Reading (via ocr.space) | Medium |
 | F06 | Intent Detection (natural language) | High |
 | F07 | Financial Reports | Medium |
 | F08 | AI Fallback (Workers AI → DeepSeek) | High |
 
-### Critical: Debt Feature is NOT Simple
+### Critical: Loan Feature Complexity
 
-The debt feature is the **most complex and most important** feature. It is NOT a simple "person owes person" tracker. It handles:
+The loan/debt feature is the **most complex and most important** feature. It is NOT a simple "person owes person" tracker. It handles:
 
 - Multiple online lending platforms (Shopee Pinjam, SPayLater, SeaBank, Kredivo, etc.)
 - Fixed installment schedules with specific due dates per month
-- Different late fee calculations per platform (percentage-based, daily-based)
+- Different late fee calculations per platform (percentage-based monthly, percentage-based daily)
 - Remaining balance tracking (total owed vs already paid)
 - Due date reminders and countdown
-- Payoff strategy and prioritization
+- Payoff progress tracking
 
 See `docs/DEBT-STUDY-CASE.md` for the real-world data that this feature is based on.
 
 ## 5. Docs Map
 
-Read these files in order of relevance:
+All planning docs are **finalized** ✅. Read these files in order of relevance:
 
 | Priority | File | When to Read |
 |---|---|---|
@@ -83,6 +83,7 @@ Read these files in order of relevance:
 | 🟡 Important | `docs/FEATURES.md` | When implementing features |
 | 🟡 Important | `docs/DATABASE.md` | When working with data/queries |
 | 🟡 Important | `docs/ARCHITECTURE.md` | When building new components |
+| 🟡 Important | `docs/DEBT-STUDY-CASE.md` | When working on loan feature (F03) |
 | 🟢 Reference | `docs/API-FLOW.md` | When handling Telegram webhook flow |
 | 🟢 Reference | `docs/DECISIONS.md` | When making architectural decisions |
 | 🟢 Reference | `docs/LIMITS.md` | When optimizing for free tier limits |

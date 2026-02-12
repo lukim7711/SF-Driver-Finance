@@ -1,68 +1,76 @@
 # SF Driver Finance 🏍️💰
 
-Aplikasi manajemen keuangan untuk **ShopeeFood Driver** (Food & SPX) yang berjalan sebagai **Telegram Bot**, di-hosting di **Cloudflare Workers Free Tier**.
+Personal finance management app for **ShopeeFood/SPX Express Drivers** running as a **Telegram Bot**, hosted on **Cloudflare Workers Free Tier**.
 
-## Fitur Utama
+## Key Features
 
-- 📥 **Catat Pemasukan** — dari orderan ShopeeFood / SPX
-- 📤 **Catat Pengeluaran** — bensin, parkir, makan, servis motor, dll.
-- 💸 **Tracking Hutang** — siapa, berapa, kapan, status lunas
-- 🎯 **Target Pendapatan** — set target harian/mingguan/bulanan
-- 📸 **Baca Gambar** — struk, nota, screenshot orderan → otomatis jadi data
-- 🤖 **Intent Detection** — kirim pesan biasa, bot mengerti maksudnya
-- 📊 **Laporan Keuangan** — harian, mingguan, bulanan
-- 🔄 **AI Fallback** — otomatis fallback ke DeepSeek API jika Workers AI mendekati limit
+- 📥 **Record Income** — from ShopeeFood / SPX delivery orders
+- 📤 **Record Expenses** — fuel, parking, meals, cigarettes, data plan, household, etc.
+- 💸 **Loan Tracking** — multi-platform pinjol installments with due dates, late fees, payoff tracking
+- 🎯 **Income Targets** — set daily/weekly/monthly targets
+- 📸 **OCR Receipt Reading** — receipt, notes, order screenshots → auto-extracted via ocr.space API
+- 🤖 **Intent Detection** — send casual messages, bot understands the intent via AI
+- 📊 **Financial Reports** — daily, weekly, monthly summaries
+- 🔄 **AI Fallback** — auto-fallback to DeepSeek API when Workers AI approaches daily limit
 
 ## Tech Stack
 
-| Komponen | Teknologi |
+| Component | Technology |
 |---|---|
 | Runtime | Cloudflare Workers (Free Tier) |
 | Database | Durable Objects + SQLite storage |
-| AI Primary | Cloudflare Workers AI |
+| AI Primary | Cloudflare Workers AI (intent detection only) |
 | AI Fallback | DeepSeek API |
+| OCR | ocr.space API (free tier) |
 | Bot Platform | Telegram Bot API (webhook mode) |
-| Bahasa | JavaScript |
+| Language | JavaScript (ES Modules) |
 
-## Struktur Proyek
+## Project Structure
 
 ```
 SF-Driver-Finance/
 ├── src/
-│   └── index.js          # Entry point Worker
+│   └── index.js              # Worker entry point
 ├── docs/
-│   ├── ARCHITECTURE.md   # Arsitektur sistem
-│   ├── DECISIONS.md      # Log keputusan desain
-│   ├── FEATURES.md       # Daftar fitur & status
-│   ├── CHANGELOG.md      # Riwayat perubahan
-│   ├── DATABASE.md       # Skema database
-│   ├── API-FLOW.md       # Alur request
-│   └── LIMITS.md         # Limit free tier & strategi
-├── wrangler.jsonc        # Konfigurasi Cloudflare Workers
-├── package.json          # Dependencies
-└── README.md             # Dokumentasi utama
+│   ├── AI-CONTEXT.md         # AI entry point (read this first)
+│   ├── PROGRESS.md           # Current status & next steps
+│   ├── ARCHITECTURE.md       # System architecture
+│   ├── DATABASE.md           # Database schema (6 tables)
+│   ├── FEATURES.md           # Feature list & status
+│   ├── API-FLOW.md           # Request flow diagrams
+│   ├── DECISIONS.md          # Design decision log (11 decisions)
+│   ├── LIMITS.md             # Free tier limits & strategies
+│   ├── DEBT-STUDY-CASE.md    # Real-world loan data reference
+│   └── CHANGELOG.md          # Change history
+├── wrangler.jsonc            # Cloudflare Workers configuration
+├── package.json              # Dependencies
+└── README.md                 # This file
 ```
 
-## Dokumentasi
+## Documentation
 
-- [Arsitektur Sistem](docs/ARCHITECTURE.md)
-- [Keputusan Desain](docs/DECISIONS.md)
-- [Daftar Fitur](docs/FEATURES.md)
+- [AI Context (Start Here)](docs/AI-CONTEXT.md)
+- [Progress Tracker](docs/PROGRESS.md)
+- [System Architecture](docs/ARCHITECTURE.md)
+- [Database Schema](docs/DATABASE.md)
+- [Feature List](docs/FEATURES.md)
+- [API Flow](docs/API-FLOW.md)
+- [Design Decisions](docs/DECISIONS.md)
+- [Limits & Strategy](docs/LIMITS.md)
+- [Debt Study Case](docs/DEBT-STUDY-CASE.md)
 - [Changelog](docs/CHANGELOG.md)
-- [Skema Database](docs/DATABASE.md)
-- [Alur API](docs/API-FLOW.md)
-- [Limit & Strategi](docs/LIMITS.md)
 
 ## Setup & Development
 
-> ⚠️ Proyek masih dalam tahap perencanaan. Instruksi setup akan ditambahkan setelah fase development dimulai.
+> ⚠️ Project is in planning phase. Setup instructions will be added when development begins.
 
-### Prasyarat
+### Prerequisites
 
 - Node.js >= 18
-- Akun Cloudflare (Free Tier)
-- Telegram Bot Token (dari @BotFather)
+- Cloudflare account (Free Tier)
+- Telegram Bot Token (from @BotFather)
 - DeepSeek API Key
+- ocr.space API Key
 
 ### Quick Start
 
@@ -71,9 +79,18 @@ git clone https://github.com/lukim7711/SF-Driver-Finance.git
 cd SF-Driver-Finance
 npm install
 npx wrangler dev   # Development mode
-npx wrangler deploy # Deploy ke Cloudflare
+npx wrangler deploy # Deploy to Cloudflare
 ```
 
-## Lisensi
+### Secrets Setup
 
-Proyek pribadi — hak cipta dilindungi.
+```bash
+npx wrangler secret put TELEGRAM_BOT_TOKEN
+npx wrangler secret put TELEGRAM_WEBHOOK_SECRET
+npx wrangler secret put DEEPSEEK_API_KEY
+npx wrangler secret put OCR_SPACE_API_KEY
+```
+
+## License
+
+Private project — all rights reserved.

@@ -1,25 +1,66 @@
 # Changelog
 
-Semua perubahan penting pada proyek ini didokumentasikan di sini.
+All notable changes to this project are documented here.
 
-Format: `[Tanggal] — Deskripsi perubahan`
+Format: `[Date] — Description`
 
 ---
 
-## 2025-02-11 — Inisialisasi Proyek
+## 2026-02-12 — Planning Finalization (Session #3)
 
-### Ditambahkan
+### Revised
 
-- Struktur repository awal
-- `wrangler.jsonc` — konfigurasi Cloudflare Workers + Durable Objects
-- `package.json` — metadata proyek dan dependencies dasar
-- `src/index.js` — placeholder entry point Worker + Durable Object class
-- Dokumentasi lengkap di `/docs`:
-  - `ARCHITECTURE.md` — arsitektur sistem dan diagram alur
-  - `DECISIONS.md` — log keputusan desain awal (7 keputusan)
-  - `FEATURES.md` — daftar 13 fitur (8 inti + 2 pendukung + 3 roadmap)
-  - `CHANGELOG.md` — file ini
-  - `DATABASE.md` — skema database SQLite (5 tabel)
-  - `API-FLOW.md` — alur request detail dari Telegram ke response
-  - `LIMITS.md` — catatan limit free tier dan strategi penghematan
-- `README.md` — overview proyek, tech stack, struktur folder
+- `docs/DATABASE.md` — Complete rewrite: removed `debts` table, added `loans` + `installments` tables for pinjol tracking. Expanded expense categories (10 categories). All in English.
+- `docs/FEATURES.md` — Rewritten in English. F03 expanded from 1 feature to 7 sub-features (F03a–F03g) for pinjol installment tracking. Added F12 (Debt Payoff Strategy) to roadmap.
+- `docs/DECISIONS.md` — Rewritten in English. Added 4 new decisions (#8–#11): ocr.space for OCR, English code rule, loan tracking redesign, pre-generated installment rows.
+- `docs/LIMITS.md` — Rewritten in English. OCR removed from Workers AI Neuron budget. Added ocr.space free tier limits. Recalculated daily budget estimates.
+- `docs/API-FLOW.md` — Rewritten in English. OCR flow updated to 2-step process (ocr.space → AI text parsing). Added ocr.space API call details and response format.
+- `wrangler.jsonc` — Added `OCR_SPACE_API_KEY` to secrets documentation.
+
+### Added
+
+- `docs/DEBT-STUDY-CASE.md` — Real-world loan data from 5 pinjol platforms (Shopee Pinjam, SPayLater, SeaBank, Kredivo ×2) as design reference for debt feature.
+
+---
+
+## 2026-02-12 — AI-Assisted Development Setup (Session #2)
+
+### Added
+
+- `docs/AI-CONTEXT.md` — AI entry point file for new thread context. Contains developer profile, project summary, tech stack, docs map, and code generation rules.
+- `docs/PROGRESS.md` — Progress tracker with planning status, implementation status, known issues, next steps, and session log.
+
+### Identified
+
+- 3 major revisions needed: OCR → ocr.space, English code rule, debt feature redesign for pinjol.
+
+---
+
+## 2026-02-12 — Planning Finalization Part 2 (Session #4)
+
+### Revised
+
+- `README.md` — Rewritten in English. Updated tech stack (added ocr.space), project structure (added new docs), prerequisites (added ocr.space API key), secrets setup section.
+- `docs/ARCHITECTURE.md` — Rewritten in English. Added ocr.space as separate component in architecture diagram. Updated database tables (loans + installments). Clarified AI layer only handles intent detection + OCR text parsing.
+- `docs/CHANGELOG.md` — Rewritten in English. Added all session entries.
+- `docs/AI-CONTEXT.md` — Updated to reflect all planning docs are finalized.
+
+---
+
+## 2026-02-11 — Project Initialization (Session #1)
+
+### Added
+
+- Initial repository structure
+- `wrangler.jsonc` — Cloudflare Workers + Durable Objects configuration
+- `package.json` — Project metadata and base dependencies
+- `src/index.js` — Placeholder entry point Worker + Durable Object class
+- Complete documentation in `/docs`:
+  - `ARCHITECTURE.md` — System architecture and flow diagram
+  - `DECISIONS.md` — Initial design decision log (7 decisions)
+  - `FEATURES.md` — Feature list (8 core + 2 supporting + 3 roadmap)
+  - `CHANGELOG.md` — This file
+  - `DATABASE.md` — SQLite database schema (5 tables)
+  - `API-FLOW.md` — Detailed request flow from Telegram to response
+  - `LIMITS.md` — Free tier limits and optimization strategies
+- `README.md` — Project overview, tech stack, folder structure

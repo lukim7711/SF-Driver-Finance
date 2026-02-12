@@ -103,3 +103,4 @@ SF Driver Finance uses a **serverless** architecture based on Cloudflare Workers
 | OCR | ocr.space API | Free: 25K req/month |
 | Bot | Telegram Bot API | Free, webhook mode |
 | Language | TypeScript | Wrangler compiles natively |
+| CI/CD | GitHub Actions | Type check + auto-deploy on merge |

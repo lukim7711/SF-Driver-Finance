@@ -8,7 +8,7 @@
 ## Current Phase: ✅ PLANNING COMPLETE → Ready for Development
 
 **Last Updated**: 2026-02-12
-**Last Session Summary**: Added branching strategy (feature branches, never push to main), CI/CD via GitHub Actions, tsconfig.json. Removed "write simple" constraint. Updated all docs.
+**Last Session Summary**: Consistency audit — added .gitignore, fixed CI workflows (npm ci → npm install), updated README structure, clarified Decision 7, added GitHub Actions to LIMITS.md and ARCHITECTURE.md.
 
 ---
 
@@ -18,12 +18,12 @@
 |---|---|---|
 | Project structure | ✅ Done | Folders and base files created |
 | README.md | ✅ Done | English, TypeScript, all latest decisions |
-| Architecture design | ✅ Done | Includes ocr.space, updated DB tables |
+| Architecture design | ✅ Done | Includes ocr.space, CI/CD in tech stack |
 | Database schema | ✅ Done | loans + installments tables, 10 expense categories |
 | Feature list | ✅ Done | F03 expanded to 7 sub-features for pinjol |
 | API flow design | ✅ Done | 2-step OCR flow, TypeScript code examples |
 | Decisions log | ✅ Done | 13 decisions documented |
-| Limits & strategy | ✅ Done | ocr.space separated from Neuron budget |
+| Limits & strategy | ✅ Done | All services covered incl. GitHub Actions |
 | AI Context file | ✅ Done | `docs/AI-CONTEXT.md` |
 | Progress tracker | ✅ Done | This file |
 | Debt study case doc | ✅ Done | `docs/DEBT-STUDY-CASE.md` with 5 platform data |
@@ -32,6 +32,7 @@
 | CI/CD pipeline | ✅ Done | GitHub Actions: type check + auto-deploy |
 | Branching strategy | ✅ Done | Feature branches, merge to main via PR |
 | tsconfig.json | ✅ Done | Strict mode, Cloudflare Workers types |
+| .gitignore | ✅ Done | node_modules, .wrangler, .dev.vars, dist |
 
 **All planning documentation is complete and consistent.** ✅
 
@@ -49,6 +50,7 @@
 | `tsconfig.json` | ✅ Configured | Strict TypeScript for Cloudflare Workers |
 | `.github/workflows/ci.yml` | ✅ Configured | Type check on push to feature branches + PRs |
 | `.github/workflows/deploy.yml` | ✅ Configured | Auto-deploy to Cloudflare on merge to main |
+| `.gitignore` | ✅ Configured | node_modules, .wrangler, .dev.vars, dist, IDE files |
 
 ### Features Implementation
 
@@ -145,4 +147,5 @@ Phased approach — build foundation first, then layer features:
 | 2026-02-12 | #3 | Major revision: DATABASE, FEATURES, DECISIONS, LIMITS, API-FLOW, wrangler. Added DEBT-STUDY-CASE.md |
 | 2026-02-12 | #4 | Finalized all docs: README, ARCHITECTURE, CHANGELOG, AI-CONTEXT updated |
 | 2026-02-12 | #5 | Language change: JavaScript → TypeScript. All docs, config, entry point updated |
-| 2026-02-12 | #6 | Branching strategy + CI/CD + tsconfig. Removed "write simple" constraint. Decisions #12–#13 |
+| 2026-02-12 | #6 | Branching strategy + CI/CD + tsconfig. Removed "write simple" constraint. Decisions #12–13 |
+| 2026-02-12 | #7 | Consistency audit: added .gitignore, fixed CI (npm install), updated README/DECISIONS/LIMITS/ARCHITECTURE |

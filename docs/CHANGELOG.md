@@ -6,6 +6,26 @@ Format: `[Date] — Description`
 
 ---
 
+## 2026-02-12 — Consistency Audit & Fixes (Session #7)
+
+### Added
+
+- `.gitignore` — Ignores node_modules, .wrangler, .dev.vars, dist, IDE files, OS files
+
+### Fixed
+
+- `.github/workflows/ci.yml` — Changed `npm ci` to `npm install` (no package-lock.json in repo)
+- `.github/workflows/deploy.yml` — Changed `npm ci` to `npm install` (same reason)
+
+### Revised
+
+- `README.md` — Updated project structure tree: added .github/workflows, tsconfig.json, .gitignore. Added CI/CD to tech stack. Added GitHub Actions secret to setup instructions.
+- `docs/DECISIONS.md` — Decision 7 clarified: tsconfig.json is for CI type checking, not for Wrangler build.
+- `docs/LIMITS.md` — Added GitHub Actions free tier section (2,000 min/month for private repos, usage estimates).
+- `docs/ARCHITECTURE.md` — Added CI/CD (GitHub Actions) to tech stack table.
+
+---
+
 ## 2026-02-12 — Branching Strategy & CI/CD (Session #6)
 
 ### Added

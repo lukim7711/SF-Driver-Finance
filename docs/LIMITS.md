@@ -1,6 +1,6 @@
 # Free Tier Limits & Optimization Strategy
 
-This document records all relevant Cloudflare Free Tier limits and strategies to maximize usage.
+This document records all relevant free tier limits and strategies to maximize usage.
 
 ## Cloudflare Workers
 
@@ -68,6 +68,22 @@ Note: The AI step after OCR for parsing the extracted text DOES consume Neurons.
 | Cache hit | $0.014/1M tokens | Even cheaper |
 
 **Cost estimate**: Intent detection prompt ~200 tokens, output ~50 tokens. Per request ≈ $0.00004. 100 requests/day ≈ $0.004/day ≈ $0.12/month.
+
+## GitHub Actions (CI/CD)
+
+| Resource | Free Tier Limit | Notes |
+|---|---|---|
+| Minutes (private repo) | 2,000 min/month | Ubuntu runners |
+| Minutes (public repo) | Unlimited | If repo is made public |
+| Storage (artifacts) | 500 MB | Not used currently |
+
+**Usage estimate per CI run**:
+- `npm install` + `tsc --noEmit`: ~1-2 minutes
+- `npm install` + `tsc --noEmit` + `wrangler deploy`: ~2-3 minutes
+
+**Monthly estimate**: 10 feature branches × 5 pushes each × 2 min = ~100 min. Plus 10 deploys × 3 min = 30 min. **Total: ~130 min/month** (well within 2,000 min limit).
+
+⚠️ **Important**: If the repo is private, GitHub Actions minutes are limited. Consider making the repo public if minutes become a concern.
 
 ---
 
@@ -141,4 +157,5 @@ Items to monitor regularly:
 3. **DeepSeek API usage** — check billing dashboard
 4. **ocr.space usage** — track monthly request count (25K limit)
 5. **Worker request count** — ensure under 100K/day
-6. **Error rate** — log errors for debugging
+6. **GitHub Actions minutes** — check monthly usage in repo Settings → Actions → Usage
+7. **Error rate** — log errors for debugging

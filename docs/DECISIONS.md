@@ -91,7 +91,8 @@ This document records important design decisions and their rationale.
 **Rationale**:
 - Type safety makes code more reliable and self-documenting
 - AI tools (Perplexity/Claude) generate better, more consistent TypeScript code
-- Wrangler supports TypeScript natively — no separate build step or tsconfig needed
+- Wrangler supports TypeScript natively — no separate build step needed for deployment
+- `tsconfig.json` is used for CI type checking (`tsc --noEmit`), not for build
 - Better IDE support and autocompletion (helpful when reviewing AI-generated code)
 - Interfaces/types make Telegram API objects, DB schemas, and intent results clearer
 
@@ -181,7 +182,7 @@ This document records important design decisions and their rationale.
 
 ---
 
-### Decision 13: No "Write Simple" Constraint on AI Code
+### Decision 13: No Code Pattern Restrictions for AI
 
 **Decision**: Do not instruct AI to "write simple code" or limit code patterns.
 

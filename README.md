@@ -24,11 +24,16 @@ Personal finance management app for **ShopeeFood/SPX Express Drivers** running a
 | OCR | ocr.space API (free tier) |
 | Bot Platform | Telegram Bot API (webhook mode) |
 | Language | TypeScript |
+| CI/CD | GitHub Actions (type check + auto-deploy) |
 
 ## Project Structure
 
 ```
 SF-Driver-Finance/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                # Type check on feature branches
+│       └── deploy.yml            # Auto-deploy on merge to main
 ├── src/
 │   └── index.ts              # Worker entry point
 ├── docs/
@@ -38,12 +43,14 @@ SF-Driver-Finance/
 │   ├── DATABASE.md           # Database schema (6 tables)
 │   ├── FEATURES.md           # Feature list & status
 │   ├── API-FLOW.md           # Request flow diagrams
-│   ├── DECISIONS.md          # Design decision log (11 decisions)
+│   ├── DECISIONS.md          # Design decision log (13 decisions)
 │   ├── LIMITS.md             # Free tier limits & strategies
 │   ├── DEBT-STUDY-CASE.md    # Real-world loan data reference
 │   └── CHANGELOG.md          # Change history
+├── .gitignore                # Ignored files (node_modules, .wrangler, etc.)
 ├── wrangler.jsonc            # Cloudflare Workers configuration
 ├── package.json              # Dependencies
+├── tsconfig.json             # TypeScript strict configuration
 └── README.md                 # This file
 ```
 
@@ -85,10 +92,14 @@ npx wrangler deploy # Deploy to Cloudflare
 ### Secrets Setup
 
 ```bash
+# Cloudflare Workers secrets
 npx wrangler secret put TELEGRAM_BOT_TOKEN
 npx wrangler secret put TELEGRAM_WEBHOOK_SECRET
 npx wrangler secret put DEEPSEEK_API_KEY
 npx wrangler secret put OCR_SPACE_API_KEY
+
+# GitHub Actions secret (for auto-deploy)
+# Add CLOUDFLARE_API_TOKEN in GitHub repo Settings → Secrets → Actions
 ```
 
 ## License

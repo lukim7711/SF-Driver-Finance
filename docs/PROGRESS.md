@@ -8,7 +8,7 @@
 ## Current Phase: ✅ PLANNING COMPLETE → Ready for Development
 
 **Last Updated**: 2026-02-12
-**Last Session Summary**: Changed project language from JavaScript to TypeScript. All docs, config, and entry point updated.
+**Last Session Summary**: Added branching strategy (feature branches, never push to main), CI/CD via GitHub Actions, tsconfig.json. Removed "write simple" constraint. Updated all docs.
 
 ---
 
@@ -22,13 +22,16 @@
 | Database schema | ✅ Done | loans + installments tables, 10 expense categories |
 | Feature list | ✅ Done | F03 expanded to 7 sub-features for pinjol |
 | API flow design | ✅ Done | 2-step OCR flow, TypeScript code examples |
-| Decisions log | ✅ Done | 11 decisions (Decision 7 revised: TypeScript) |
+| Decisions log | ✅ Done | 13 decisions documented |
 | Limits & strategy | ✅ Done | ocr.space separated from Neuron budget |
 | AI Context file | ✅ Done | `docs/AI-CONTEXT.md` |
 | Progress tracker | ✅ Done | This file |
 | Debt study case doc | ✅ Done | `docs/DEBT-STUDY-CASE.md` with 5 platform data |
 | Changelog | ✅ Done | All sessions documented |
 | Wrangler config | ✅ Done | main → src/index.ts, all bindings and secrets |
+| CI/CD pipeline | ✅ Done | GitHub Actions: type check + auto-deploy |
+| Branching strategy | ✅ Done | Feature branches, merge to main via PR |
+| tsconfig.json | ✅ Done | Strict mode, Cloudflare Workers types |
 
 **All planning documentation is complete and consistent.** ✅
 
@@ -43,6 +46,9 @@
 | `src/index.ts` | 🔲 Placeholder | TypeScript entry point with Env interface, no logic yet |
 | `wrangler.jsonc` | ✅ Configured | DO binding, AI binding, vars, secrets |
 | `package.json` | ✅ Configured | wrangler + typescript + @cloudflare/workers-types |
+| `tsconfig.json` | ✅ Configured | Strict TypeScript for Cloudflare Workers |
+| `.github/workflows/ci.yml` | ✅ Configured | Type check on push to feature branches + PRs |
+| `.github/workflows/deploy.yml` | ✅ Configured | Auto-deploy to Cloudflare on merge to main |
 
 ### Features Implementation
 
@@ -69,7 +75,7 @@
 
 ## Known Issues & Bugs
 
-*No issues yet — development has not started.*
+- **GitHub Secret needed**: `CLOUDFLARE_API_TOKEN` must be added to repo Settings → Secrets for auto-deploy to work.
 
 ---
 
@@ -103,9 +109,22 @@ Phased approach — build foundation first, then layer features:
 
 ---
 
+## Development Workflow
+
+**For each feature:**
+1. Create branch: `feat/f{ID}-{name}` from `main`
+2. Push code to feature branch
+3. CI auto-checks TypeScript types
+4. Create PR to `main`
+5. Merge → auto-deploy to Cloudflare Workers
+
+---
+
 ## Next Steps (For Next Session)
 
-**Start Phase 1: Foundation**
+**Prerequisite**: Add `CLOUDFLARE_API_TOKEN` secret to GitHub repo settings.
+
+**Start Phase 1: Foundation** (on branch `feat/f09-f10-foundation`)
 
 1. Implement Telegram webhook handler in `src/index.ts`
 2. Add webhook secret validation
@@ -113,6 +132,7 @@ Phased approach — build foundation first, then layer features:
 4. Implement `/help` command with usage guide
 5. Setup Durable Object with SQLite table initialization (all 6 tables)
 6. Test webhook locally with `npx wrangler dev`
+7. Create PR to `main`
 
 ---
 
@@ -125,3 +145,4 @@ Phased approach — build foundation first, then layer features:
 | 2026-02-12 | #3 | Major revision: DATABASE, FEATURES, DECISIONS, LIMITS, API-FLOW, wrangler. Added DEBT-STUDY-CASE.md |
 | 2026-02-12 | #4 | Finalized all docs: README, ARCHITECTURE, CHANGELOG, AI-CONTEXT updated |
 | 2026-02-12 | #5 | Language change: JavaScript → TypeScript. All docs, config, entry point updated |
+| 2026-02-12 | #6 | Branching strategy + CI/CD + tsconfig. Removed "write simple" constraint. Decisions #12–#13 |

@@ -156,3 +156,39 @@ This document records important design decisions and their rationale.
 - Simple SQL queries for dashboard and reports
 
 **Trade-off**: More rows in database upfront, but SQLite handles this easily with indexes.
+
+---
+
+### Decision 12: Feature Branch Workflow
+
+**Decision**: Never push code directly to `main`. All development happens on feature branches, merged via PR after CI passes.
+
+**Rationale**:
+- `main` branch = production. Every merge to `main` triggers auto-deploy to Cloudflare Workers.
+- Feature branches isolate work-in-progress code, preventing broken code from reaching production.
+- CI (TypeScript type check) runs on every push to feature branches and on PRs to `main`.
+- If a feature breaks, `main` remains untouched and production stays stable.
+- Branch naming convention: `feat/f01-record-income`, `fix/webhook-validation`, `docs/update-progress`.
+
+**Workflow**:
+1. Create feature branch from `main` (e.g., `feat/f09-onboarding`)
+2. AI pushes code to feature branch
+3. CI runs type check automatically
+4. When ready → create PR to `main`
+5. PR merge triggers auto-deploy to Cloudflare Workers
+
+**Trade-off**: Slightly more steps than pushing directly to `main`, but prevents production breakage — critical since the developer is not a programmer and cannot manually fix broken deploys.
+
+---
+
+### Decision 13: No "Write Simple" Constraint on AI Code
+
+**Decision**: Do not instruct AI to "write simple code" or limit code patterns.
+
+**Rationale**:
+- The developer does not read or maintain code directly — AI does.
+- Constraining AI to "simple" patterns may prevent it from using the most effective or robust solution for a given problem.
+- AI should be free to use any pattern (factory, strategy, etc.) if it genuinely serves the goal.
+- Code quality is ensured by TypeScript strict mode, CI type checks, and AI code reviews — not by limiting patterns.
+
+**Trade-off**: Code may be harder to read for a human, but since the developer relies entirely on AI for code generation and maintenance, this is acceptable.

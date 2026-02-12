@@ -35,6 +35,7 @@ This is a **personal-use** application, not multi-tenant.
 | OCR | **ocr.space API** (free tier) | NOT Workers AI vision model |
 | Bot Platform | Telegram Bot API | Webhook mode |
 | Language | **TypeScript** | Wrangler handles compilation natively |
+| CI/CD | GitHub Actions | Type check on push, auto-deploy on merge to main |
 
 ### Important: OCR Decision
 
@@ -92,17 +93,50 @@ All planning docs are **finalized** ✅. Read these files in order of relevance:
 ## 6. Rules for AI Code Generation
 
 1. **Language**: All code in **TypeScript** and in English (variables, functions, comments, logs, error messages).
-2. **Simplicity**: Write simple, readable code. Avoid complex patterns (no abstract factories, no deep inheritance). The developer is not a programmer. Use TypeScript types to make code self-documenting.
+2. **No pattern restrictions**: Use whatever code patterns, abstractions, or architecture best serve the goal. The developer does not read code — AI maintains it.
 3. **Comments**: Add clear English comments explaining WHAT each function does and WHY.
-4. **Single file first**: Start with everything in `src/index.ts`, refactor into modules only when the file gets too large (>300 lines per logical section).
-5. **Error handling**: Always handle errors gracefully with user-friendly Telegram messages (in Indonesian for the end-user).
-6. **Bot responses**: Telegram bot messages to the user should be in **Indonesian** (the user is Indonesian).
-7. **Testing**: After each feature, provide a way to test it manually via Telegram.
-8. **Incremental**: Build one feature at a time. Don't try to build everything in one session.
-9. **Update PROGRESS.md**: At the end of each session, update `docs/PROGRESS.md` with what was done and what's next.
-10. **Type safety**: Use proper TypeScript interfaces/types for Telegram API objects, database rows, AI responses, and intent detection results. Avoid `any` where possible.
+4. **Error handling**: Always handle errors gracefully with user-friendly Telegram messages (in Indonesian for the end-user).
+5. **Bot responses**: Telegram bot messages to the user should be in **Indonesian** (the user is Indonesian).
+6. **Testing**: After each feature, provide a way to test it manually via Telegram.
+7. **Incremental**: Build one feature at a time. Don't try to build everything in one session.
+8. **Update PROGRESS.md**: At the end of each session, update `docs/PROGRESS.md` with what was done and what's next.
+9. **Type safety**: Use proper TypeScript interfaces/types for Telegram API objects, database rows, AI responses, and intent detection results. Avoid `any` where possible.
 
-## 7. Environment Variables & Secrets
+## 7. Branching & Deployment Workflow
+
+**CRITICAL: Never push directly to `main`.** All development uses feature branches.
+
+### Branch Naming
+
+| Type | Format | Example |
+|---|---|---|
+| Feature | `feat/f{ID}-{short-name}` | `feat/f09-onboarding` |
+| Bug fix | `fix/{short-description}` | `fix/webhook-validation` |
+| Docs only | `docs/{short-description}` | `docs/update-progress` |
+
+### Workflow
+
+1. **Create feature branch** from `main` (e.g., `feat/f09-onboarding`)
+2. **Push code** to the feature branch
+3. **CI auto-runs** TypeScript type check on every push
+4. **Create PR** to `main` when feature is ready
+5. **Merge PR** → triggers auto-deploy to Cloudflare Workers
+
+### CI/CD Pipeline
+
+- **On push to any branch (except main)**: `tsc --noEmit` type check
+- **On PR to main**: `tsc --noEmit` type check
+- **On merge to main** (only if src/, wrangler.jsonc, package.json, or tsconfig.json changed): Deploy to Cloudflare Workers via `wrangler deploy`
+
+### Required GitHub Secrets
+
+| Secret | Purpose |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Wrangler deploy authentication |
+
+This must be added in GitHub repo Settings → Secrets and variables → Actions.
+
+## 8. Environment Variables & Secrets
 
 Configured via `wrangler secret put`:
 

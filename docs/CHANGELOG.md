@@ -6,6 +6,22 @@ Format: `[Date] — Description`
 
 ---
 
+## 2026-02-12 — Branching Strategy & CI/CD (Session #6)
+
+### Added
+
+- `.github/workflows/ci.yml` — TypeScript type check on every push to feature branches and PRs to main
+- `.github/workflows/deploy.yml` — Auto-deploy to Cloudflare Workers on merge to main (only when src/, wrangler, package.json, or tsconfig changes)
+- `tsconfig.json` — Strict TypeScript config targeting ES2022 with Cloudflare Workers types
+
+### Revised
+
+- `docs/DECISIONS.md` — Added Decision #12 (feature branch workflow) and Decision #13 (removed "write simple" code constraint)
+- `docs/AI-CONTEXT.md` — New Section 7: Branching & Deployment Workflow. Updated Rule #2 (no pattern restrictions). Added CI/CD to tech stack. Added CLOUDFLARE_API_TOKEN to required secrets.
+- `docs/PROGRESS.md` — Added CI/CD, branching, tsconfig to planning status. Added development workflow section. Updated next steps to include PR workflow.
+
+---
+
 ## 2026-02-12 — Language Change: TypeScript (Session #5)
 
 ### Revised

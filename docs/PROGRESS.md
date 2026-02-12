@@ -5,10 +5,10 @@
 
 ---
 
-## Current Phase: Phase 2 COMPLETE ✅ → Ready for Phase 3
+## Current Phase: Phase 3 IN PROGRESS 🔧
 
-**Last Updated**: 2026-02-12  
-**Last Session Summary**: Phase 2 complete — AI intent detection (Workers AI + DeepSeek fallback), income recording with confirmation, expense recording with confirmation. All deployed and tested in Telegram.
+**Last Updated**: 2026-02-13  
+**Last Session Summary**: F03a Register Loan — redesigned from 7-step wizard to hybrid conversational flow. AI extracts loan params from natural language, shows smart confirmation, mini-wizard only for missing fields. Added intent guard to prevent confusion when user types new intent during active wizard.
 
 ---
 
@@ -40,7 +40,7 @@
 
 ## Implementation Status
 
-### Source Files (21 files on `main`)
+### Source Files (24 files on `main`)
 
 #### Entry Point & Config
 
@@ -66,14 +66,15 @@
 | File | Status | Description |
 |---|---|---|
 | `src/types/telegram.ts` | ✅ Done | TelegramUpdate, TelegramMessage, TelegramCallbackQuery, InlineKeyboardMarkup, SendMessageParams, etc. |
-| `src/types/conversation.ts` | ✅ Done | PendingAction union type (`confirm_ocr`, `confirm_income`, `confirm_expense`, `register_loan_step`, `confirm_payment`, `edit_transaction`), ConversationState interface |
-| `src/types/intent.ts` | ✅ Done | IntentType (10 intents), IncomeType, ExpenseCategory (10 categories), IncomeParams, ExpenseParams, IntentResult, IntentResultWithProvider |
+| `src/types/conversation.ts` | ✅ Done | PendingAction union type (`confirm_ocr`, `confirm_income`, `confirm_expense`, `confirm_loan`, `loan_fill_missing`, `loan_edit_select`, `loan_edit_field`, `confirm_payment`, `edit_transaction`), ConversationState interface |
+| `src/types/intent.ts` | ✅ Done | IntentType (10 intents), IncomeType, ExpenseCategory (10 categories), IncomeParams, ExpenseParams, RegisterLoanParams (8 optional fields), IntentResult, IntentResultWithProvider |
+| `src/types/loan.ts` | ✅ Done | LateFeeType, LoanStatus, InstallmentStatus, LoanRegistrationData, LoanRow, InstallmentRow |
 
 #### Durable Object (`src/durable-object/`)
 
 | File | Status | Description |
 |---|---|---|
-| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, message routing (command → cancel → conversation state → AI intent → route), callback query handling (confirm/cancel income/expense) |
+| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, message routing (command → cancel → conversation state → intent guard → AI intent → route), callback query handling (income/expense/loan confirm/edit/cancel). Includes `looksLikeNewIntent()` guard for active wizard states. |
 
 #### Database Layer (`src/database/`)
 
@@ -84,12 +85,13 @@
 | `src/database/conversation.ts` | ✅ Done | ensureConversationStateTable, getConversationState, setConversationState, clearConversationState |
 | `src/database/income.ts` | ✅ Done | recordIncome, getTodayIncome (grouped by food/spx) |
 | `src/database/expense.ts` | ✅ Done | recordExpense, getTodayExpenses (grouped by category), CATEGORY_LABELS map |
+| `src/database/loan.ts` | ✅ Done | registerLoan (insert loan + auto-generate installment rows), getLoans, getLoanById, getInstallments, getUpcomingInstallments |
 
 #### AI Layer (`src/ai/`)
 
 | File | Status | Description |
 |---|---|---|
-| `src/ai/prompt.ts` | ✅ Done | buildIntentPrompt — Indonesian NLP prompt with all 10 intents, expense categories, examples, and Rp shorthand parsing rules |
+| `src/ai/prompt.ts` | ✅ Done | buildIntentPrompt — Indonesian NLP prompt with all 10 intents, loan param extraction (8 fields with examples), expense categories, Rp shorthand parsing rules |
 | `src/ai/parser.ts` | ✅ Done | parseIntentResponse — extracts JSON from AI response (handles markdown code blocks, thinking tags), validates intent/params |
 | `src/ai/workers-ai.ts` | ✅ Done | detectIntentWorkersAI — Qwen3-30B-A3B via Workers AI binding. Handles both OpenAI chat completion format and simple response format |
 | `src/ai/deepseek.ts` | ✅ Done | detectIntentDeepSeek — DeepSeek chat API via fetch, used as paid fallback |
@@ -103,6 +105,7 @@
 | `src/handlers/commands.ts` | ✅ Done | handleStartCommand (welcome + register), handleHelpCommand (usage guide), handleCancelCommand |
 | `src/handlers/income.ts` | ✅ Done | handleIncomeConfirmation (show confirmation keyboard), processIncomeConfirmed (save + show today's totals), formatRupiah helper |
 | `src/handlers/expense.ts` | ✅ Done | handleExpenseConfirmation (show confirmation keyboard with category emoji), processExpenseConfirmed (save + show category breakdown) |
+| `src/handlers/loan.ts` | ✅ Done | Hybrid conversational loan registration: handleLoanFromAI (AI extraction → smart confirmation), handleMissingFieldInput (mini-wizard for gaps), handleLoanConfirmSave/Edit, handleLateFeeTypeCallback, handleEditSelection/EditFieldInput, parseAmount (supports jt/rb/k shorthand) |
 
 ### Features Implementation
 
@@ -114,7 +117,7 @@
 | F08 | AI Fallback | ✅ Done | 2 | `ai/workers-ai.ts`, `ai/deepseek.ts`, `ai/intent-detector.ts`, `ai/neuron-tracker.ts` |
 | F01 | Record Income | ✅ Done | 2 | `handlers/income.ts`, `database/income.ts` |
 | F02 | Record Expenses | ✅ Done | 2 | `handlers/expense.ts`, `database/expense.ts` |
-| F03a | Register Loan | 🔲 Not Started | 3 | — |
+| F03a | Register Loan | ✅ Done | 3 | `handlers/loan.ts`, `database/loan.ts`, `types/loan.ts`, `types/intent.ts` |
 | F03b | Record Installment Payment | 🔲 Not Started | 3 | — |
 | F03c | View Loan Dashboard | 🔲 Not Started | 3 | — |
 | F03d | Due Date Alerts | 🔲 Not Started | 3 | — |
@@ -136,6 +139,8 @@
 | Bot crashes on every message | Cloudflare `SqlStorage.one()` throws on empty results (doesn't return null) | Replaced all `.one()` with `.toArray()` + length check in 6 files | `38cb19e` |
 | Workers AI always falls back to DeepSeek | Qwen3-30B-A3B returns OpenAI chat completion format (`choices[0].message.content`) not simple `{ response }` | Added `extractResponseText()` handling both formats | `0375de1` |
 | TypeScript CI fails | `BaseAiTextGenerationModels` type doesn't exist in Cloudflare types | Used `(ai as any).run()` with explicit response type cast | `a47d625` |
+| New PendingAction values not in union type | `conversation.ts` PendingAction didn't include new loan states | Added `confirm_loan`, `loan_fill_missing`, `loan_edit_select`, `loan_edit_field` to PendingAction | `6b439a0` |
+| User types new intent during active wizard → confusing validation error | Conversation state takes priority; wizard tries to parse "hutang di warung..." as a number | Added `looksLikeNewIntent()` keyword heuristic guard — warns user to /batal first | `d0e35a5` |
 
 ### Active Notes
 
@@ -143,6 +148,7 @@
 - **Durable Object SQLite**: Always use `.toArray()` instead of `.one()` when a query might return 0 rows.
 - **Workers AI response format**: Newer models (Qwen3) return OpenAI-compatible chat completion format, not the simple `{ response }` format shown in Cloudflare docs.
 - **CI runs twice per push to PR branch**: GitHub Actions fires both `push` and `pull_request` events. Can optimize later by restricting `push` trigger to `main` only.
+- **Loan UX design**: Conversational-first (AI extraction → confirm) is much better than step-by-step wizards for chat-based interfaces. Users provide most info in one message.
 
 ---
 
@@ -161,9 +167,9 @@ Phased approach — build foundation first, then layer features:
 6. ~~**F01 — Record Income**~~ → Done (confirmation keyboard → save → today's totals)
 7. ~~**F02 — Record Expenses**~~ → Done (confirmation keyboard → save → category breakdown)
 
-### Phase 3: Loan Tracking (Critical) ← NEXT
-8. **F03a — Register Loan** → Add loan + generate installments (multi-step via chat)
-9. **F03b — Record Payment** → Mark installments as paid
+### Phase 3: Loan Tracking (Critical) ← IN PROGRESS
+8. ~~**F03a — Register Loan**~~ → ✅ Done (hybrid conversational flow + intent guard)
+9. **F03b — Record Payment** → Mark installments as paid ← NEXT
 10. **F03c — Loan Dashboard** → View all loans and status
 11. **F03d — Due Date Alerts** → Countdown warnings
 12. **F03e — Late Fee Calculator** → Calculate penalties
@@ -192,14 +198,11 @@ Phased approach — build foundation first, then layer features:
 
 ## Next Steps (For Next Session)
 
-**Start Phase 3: Loan Tracking** — the most complex and critical feature.
+**Continue Phase 3: Loan Tracking**
 
-Recommended approach:
-1. Read `docs/DEBT-STUDY-CASE.md` for real-world loan data
-2. Read `docs/DATABASE.md` for loans + installments table schema
-3. Implement F03a (Register Loan) first — multi-step conversation flow to collect loan details
-4. Then F03b (Record Payment) — mark installments as paid
-5. Then F03c (Loan Dashboard) — view all loans overview
+1. **F03b — Record Installment Payment**: User says "bayar cicilan Kredivo" → show upcoming installment → confirm → mark as paid
+2. **F03c — Loan Dashboard**: "lihat hutang" → show all active loans with progress bars, next due dates, remaining amounts
+3. Then F03d–F03g as time permits
 
 ---
 
@@ -217,3 +220,4 @@ Recommended approach:
 | 2026-02-12 | #8 | Post-discussion updates: AI model → qwen3-30b-a3b-fp8, schema versioning, conversation state design, Mini App for Phase 4 |
 | 2026-02-12 | #9 | **Phase 1 complete**: F09 Onboarding + F10 Commands. Telegram webhook, /start, /help, /batal, DB schema init (7 tables), conversation state infra, Telegram API client. Deployed via PR #2 → PR #3 |
 | 2026-02-12 | #10 | **Phase 2 complete**: F06 Intent Detection + F08 AI Fallback + F01 Income + F02 Expense. AI prompt for Indonesian NLP, dual-provider orchestrator (Workers AI + DeepSeek), income/expense recording with inline keyboard confirmation, Neuron tracking. Fixed 3 runtime bugs: .one() crash, Workers AI response format, TS type error. Deployed via PR #4 + hotfixes |
+| 2026-02-13 | #11 | **F03a Register Loan complete**: Redesigned 7-step wizard → hybrid conversational flow. AI extracts loan params from natural language → smart confirmation → mini-wizard for missing fields only. Edit mode (pick 1-7). Intent guard for active wizard. Deployed via PR #5 → PR #6 → PR #7 |

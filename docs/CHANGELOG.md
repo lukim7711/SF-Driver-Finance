@@ -6,6 +6,40 @@ Format: `[Date] — Description`
 
 ---
 
+## 2026-02-13 — Phase 3: F03a Register Loan — Hybrid Conversational Flow (Session #11)
+
+### Design Decision
+
+Redesigned F03a from a **7-step sequential wizard** to a **hybrid conversational flow**. The original wizard forced users through 7 round-trips for every loan registration. The new design lets AI extract all detectable fields from a single natural language message, then only asks for missing fields.
+
+### Added (via PR #5: `feat/f03a-register-loan` — original 7-step wizard)
+
+- `src/types/loan.ts` — Loan types: LateFeeType, LoanStatus, InstallmentStatus, LoanRegistrationData, LoanRow, InstallmentRow
+- `src/database/loan.ts` — registerLoan (insert loan + auto-generate installment rows), getLoans, getLoanById, getInstallments, getUpcomingInstallments
+- `src/handlers/loan.ts` — 7-step registration handler with inline keyboard for late fee type
+
+### Rewritten (via PR #6: `fix/f03a-hybrid-loan-flow` — conversational redesign)
+
+- `src/types/intent.ts` — Added `RegisterLoanParams` interface with all-optional fields (platform, original_amount, total_with_interest, total_installments, monthly_amount, due_day, late_fee_type, late_fee_value)
+- `src/types/conversation.ts` — Replaced `register_loan_step` with 4 new PendingAction values: `confirm_loan`, `loan_fill_missing`, `loan_edit_select`, `loan_edit_field`
+- `src/ai/prompt.ts` — Enhanced `register_loan` intent: AI now extracts 8 loan fields from natural language with detailed Indonesian examples and shorthand parsing rules
+- `src/handlers/loan.ts` — **Full rewrite**: `handleLoanFromAI()` (AI extraction → smart confirmation), `handleMissingFieldInput()` (mini-wizard for gaps only), `handleLoanConfirmSave/Edit`, `handleLateFeeTypeCallback`, `handleEditSelection/EditFieldInput`, `parseAmount()` (supports jt/rb/k shorthand)
+- `src/durable-object/finance-do.ts` — New conversation states routing, 3 new callback handlers (loan_confirm_yes/edit/no, loan_late_fee:*)
+
+### Flow Design
+
+| Scenario | Behavior |
+|---|---|
+| Complete info | AI extracts all fields → `[✅ Simpan] [✏️ Edit] [❌ Batal]` |
+| Partial info | Show detected + mini-wizard for missing fields → then confirmation |
+| No params | Show examples, ask user to send info in one message |
+
+### Fixed (via PR #7: `fix/f03a-wizard-intent-guard`)
+
+- **Intent guard for active wizard** — When user types a new intent (e.g., "hutang di warung mba salsa 25rb") during an active loan mini-wizard, instead of confusing validation error, bot now detects the new intent via `looksLikeNewIntent()` keyword heuristic and shows a friendly warning to `/batal` first. Applied to `loan_fill_missing`, `loan_edit_select`, `loan_edit_field` states.
+
+---
+
 ## 2026-02-12 — Phase 2: Core Recording + AI Intent Detection (Session #10)
 
 ### Added (via PR #4: `feat/phase2-core-recording`)

@@ -3,12 +3,12 @@
  * Each user gets their own Durable Object instance (keyed by Telegram user ID).
  * Contains SQLite database for all financial data and conversation state.
  *
- * Phase 3: Hybrid loan registration — AI extracts params, mini-wizard fills gaps.
+ * Phase 3: Loan tracking — registration + payment recording.
  */
 
 import type { Env } from "../index";
 import type { TelegramMessage, TelegramCallbackQuery } from "../types/telegram";
-import type { IncomeParams, ExpenseParams, RegisterLoanParams } from "../types/intent";
+import type { IncomeParams, ExpenseParams, RegisterLoanParams, PayInstallmentParams } from "../types/intent";
 import type { LateFeeType } from "../types/loan";
 import { initializeDatabase } from "../database/schema";
 import {
@@ -33,6 +33,7 @@ import {
   handleEditSelection,
   handleEditFieldInput,
 } from "../handlers/loan";
+import { handlePaymentFromAI, handlePaymentConfirmed } from "../handlers/payment";
 import { detectIntent } from "../ai/intent-detector";
 import { ensureNeuronTable, getNeuronCount, incrementNeuronCount } from "../ai/neuron-tracker";
 import { sendText, answerCallbackQuery, editMessageText } from "../telegram/api";
@@ -57,7 +58,7 @@ function getTodayDate(): string {
  */
 const INTENT_KEYWORDS = [
   // loan/debt
-  "hutang", "pinjam", "pinjol", "daftar pinjaman", "cicilan",
+  "hutang", "pinjam", "pinjol", "daftar pinjaman", "cicilan", "bayar",
   // income
   "dapet", "dapat", "income", "penghasilan",
   // expense
@@ -228,10 +229,11 @@ export class FinanceDurableObject implements DurableObject {
           await handleEditFieldInput(token, chatId, this.db, text, todayDate);
           return;
         }
-        // Loan confirmation or income/expense: use buttons
+        // Loan confirmation, payment confirmation, or income/expense: use buttons
         case "confirm_loan":
         case "confirm_income":
-        case "confirm_expense": {
+        case "confirm_expense":
+        case "confirm_payment": {
           await sendText(
             token,
             chatId,
@@ -300,7 +302,8 @@ export class FinanceDurableObject implements DurableObject {
       }
 
       case "pay_installment": {
-        await sendText(token, chatId, "\ud83c\udfe6 Fitur bayar cicilan akan hadir segera!");
+        const params = result.params as PayInstallmentParams;
+        await handlePaymentFromAI(token, chatId, this.db, params, todayDate);
         return;
       }
 
@@ -335,6 +338,7 @@ export class FinanceDurableObject implements DurableObject {
           "\u2022 <i>\"Dapet 150rb food\"</i> \u2014 catat pendapatan\n" +
           "\u2022 <i>\"Bensin 20rb\"</i> \u2014 catat pengeluaran\n" +
           "\u2022 <i>\"Kredivo 5jt 12 bulan 500rb/bln\"</i> \u2014 daftar pinjaman\n" +
+          "\u2022 <i>\"Bayar cicilan Kredivo\"</i> \u2014 catat pembayaran\n" +
           "\u2022 <i>\"Lihat hutang\"</i> \u2014 cek pinjaman\n\n" +
           "Ketik /help untuk panduan lengkap."
         );
@@ -359,6 +363,33 @@ export class FinanceDurableObject implements DurableObject {
     }
 
     const state = getConversationState(this.db);
+
+    // ── Payment: confirm payment ──
+    if (data === "payment_confirm_yes") {
+      if (state?.pending_action === "confirm_payment") {
+        await answerCallbackQuery(token, { callback_query_id: query.id, text: "Mencatat pembayaran..." });
+        await editMessageText(token, {
+          chat_id: chatId,
+          message_id: messageId,
+          text: query.message?.text ?? "Dikonfirmasi",
+        });
+        await handlePaymentConfirmed(token, chatId, this.db, todayDate);
+      } else {
+        await answerCallbackQuery(token, { callback_query_id: query.id, text: "Sesi sudah berakhir." });
+      }
+      return;
+    }
+
+    if (data === "payment_confirm_no") {
+      clearConversationState(this.db);
+      await answerCallbackQuery(token, { callback_query_id: query.id, text: "Dibatalkan" });
+      await editMessageText(token, {
+        chat_id: chatId,
+        message_id: messageId,
+        text: "\u274c Pembayaran cicilan dibatalkan.",
+      });
+      return;
+    }
 
     // ── Loan: late fee type selection ──
     if (data.startsWith("loan_late_fee:")) {

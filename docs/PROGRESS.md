@@ -8,7 +8,7 @@
 ## Current Phase: Phase 3 IN PROGRESS 🔧
 
 **Last Updated**: 2026-02-13  
-**Last Session Summary**: F03b Record Payment — complete installment payment recording with fuzzy platform matching, late fee calculation, automatic loan status updates, and natural language support ("bayar cicilan Kredivo").
+**Last Session Summary**: F03c Loan Dashboard — "lihat hutang" and /hutang show all active loans with visual progress bars, due date countdowns (urgency colors), summary totals (total debt, monthly obligation), and paid-off list.
 
 ---
 
@@ -40,7 +40,7 @@
 
 ## Implementation Status
 
-### Source Files (25 files on `feat/f03b-record-payment` branch)
+### Source Files (26 files on `feat/f03c-loan-dashboard` branch)
 
 #### Entry Point & Config
 
@@ -74,7 +74,7 @@
 
 | File | Status | Description |
 |---|---|---|
-| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, message routing (command → cancel → conversation state → intent guard → AI intent → route), callback query handling (income/expense/loan/payment confirm/edit/cancel). Includes `looksLikeNewIntent()` guard for active wizard states. |
+| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, message routing (command → cancel → conversation state → intent guard → AI intent → route), callback query handling. /hutang shortcut command for loan dashboard. Includes `looksLikeNewIntent()` guard for active wizard states. |
 
 #### Database Layer (`src/database/`)
 
@@ -107,6 +107,7 @@
 | `src/handlers/expense.ts` | ✅ Done | handleExpenseConfirmation (show confirmation keyboard with category emoji), processExpenseConfirmed (save + show category breakdown) |
 | `src/handlers/loan.ts` | ✅ Done | Hybrid conversational loan registration: handleLoanFromAI (AI extraction → smart confirmation), handleMissingFieldInput (mini-wizard for gaps), handleLoanConfirmSave/Edit, handleLateFeeTypeCallback, handleEditSelection/EditFieldInput, parseAmount (supports jt/rb/k shorthand) |
 | `src/handlers/payment.ts` | ✅ Done | Installment payment recording: handlePaymentFromAI (fuzzy platform matching → find next unpaid installment → show confirmation with due date + late fee), handlePaymentConfirmed (mark as paid + update loan counter + check if paid_off), calculateLateFee (percent_monthly, percent_daily, fixed) |
+| `src/handlers/dashboard.ts` | ✅ Done | Loan dashboard: handleLoanDashboard — shows all active loans sorted by nearest due date, visual progress bars (█░), urgency icons (🔴🟠🟡🟢), due date countdowns, summary totals (remaining debt, monthly obligation), paid-off loan list, empty state. /hutang shortcut. |
 
 ### Features Implementation
 
@@ -120,7 +121,7 @@
 | F02 | Record Expenses | ✅ Done | 2 | `handlers/expense.ts`, `database/expense.ts` |
 | F03a | Register Loan | ✅ Done | 3 | `handlers/loan.ts`, `database/loan.ts`, `types/loan.ts`, `types/intent.ts` |
 | F03b | Record Installment Payment | ✅ Done | 3 | `handlers/payment.ts`, `database/loan.ts` (markInstallmentPaid) |
-| F03c | View Loan Dashboard | 🔲 Not Started | 3 | — |
+| F03c | View Loan Dashboard | ✅ Done | 3 | `handlers/dashboard.ts`, `durable-object/finance-do.ts` (/hutang) |
 | F03d | Due Date Alerts | 🔲 Not Started | 3 | — |
 | F03e | Late Fee Calculator | 🔲 Not Started | 3 | — |
 | F03f | Monthly Obligation Summary | 🔲 Not Started | 3 | — |
@@ -152,6 +153,7 @@
 - **Loan UX design**: Conversational-first (AI extraction → confirm) is much better than step-by-step wizards for chat-based interfaces. Users provide most info in one message.
 - **Payment recording**: Fuzzy platform name matching (case-insensitive substring) works well for natural language ("bayar shopee" matches "Shopee Pinjam").
 - **Late fee calculation**: Built directly into payment handler — calculates on-the-fly based on days overdue and loan's late_fee_type.
+- **Dashboard**: `/hutang` shortcut command bypasses AI — saves Neurons for a purely read-only operation.
 
 ---
 
@@ -173,8 +175,8 @@ Phased approach — build foundation first, then layer features:
 ### Phase 3: Loan Tracking (Critical) ← IN PROGRESS
 8. ~~**F03a — Register Loan**~~ → ✅ Done (hybrid conversational flow + intent guard)
 9. ~~**F03b — Record Payment**~~ → ✅ Done (fuzzy platform match + late fee calc + auto paid_off)
-10. **F03c — Loan Dashboard** → View all loans and status ← NEXT
-11. **F03d — Due Date Alerts** → Countdown warnings
+10. ~~**F03c — Loan Dashboard**~~ → ✅ Done (progress bars, urgency icons, summary totals, /hutang command)
+11. **F03d — Due Date Alerts** → Proactive warnings on every message ← NEXT
 12. **F03e — Late Fee Calculator** → Calculate penalties
 13. **F03f — Monthly Summary** → Aggregate obligations
 14. **F03g — Payoff Progress** → Track overall progress
@@ -203,9 +205,9 @@ Phased approach — build foundation first, then layer features:
 
 **Continue Phase 3: Loan Tracking**
 
-1. **F03c — Loan Dashboard**: "lihat hutang" → show all active loans with progress bars, next due dates, remaining amounts
-2. **F03d — Due Date Alerts**: Check upcoming/overdue installments on every message, show warnings
-3. Then F03e–F03g as time permits
+1. **F03d — Due Date Alerts**: Check upcoming/overdue installments on every user message, show warning if within 3 days or overdue
+2. **F03e — Late Fee Calculator**: Standalone "hitung denda" command
+3. Then F03f–F03g as time permits
 
 ---
 
@@ -224,4 +226,5 @@ Phased approach — build foundation first, then layer features:
 | 2026-02-12 | #9 | **Phase 1 complete**: F09 Onboarding + F10 Commands. Telegram webhook, /start, /help, /batal, DB schema init (7 tables), conversation state infra, Telegram API client. Deployed via PR #2 → PR #3 |
 | 2026-02-12 | #10 | **Phase 2 complete**: F06 Intent Detection + F08 AI Fallback + F01 Income + F02 Expense. AI prompt for Indonesian NLP, dual-provider orchestrator (Workers AI + DeepSeek), income/expense recording with inline keyboard confirmation, Neuron tracking. Fixed 3 runtime bugs: .one() crash, Workers AI response format, TS type error. Deployed via PR #4 + hotfixes |
 | 2026-02-13 | #11 | **F03a Register Loan complete**: Redesigned 7-step wizard → hybrid conversational flow. AI extracts loan params from natural language → smart confirmation → mini-wizard for missing fields only. Edit mode (pick 1-7). Intent guard for active wizard. Deployed via PR #5 → PR #6 → PR #7 |
-| 2026-02-13 | #12 | **F03b Record Payment complete**: Installment payment recording with fuzzy platform matching, late fee calculation (percent_monthly/daily/fixed), auto loan status update to paid_off when all installments are paid. Natural language support ("bayar cicilan Kredivo"). New handler: `payment.ts`. Updated `loan.ts` with `markInstallmentPaid()` and `getInstallmentsByLoan()`. |
+| 2026-02-13 | #12 | **F03b Record Payment complete**: Installment payment recording with fuzzy platform matching, late fee calculation (percent_monthly/daily/fixed), auto loan status update to paid_off. Deployed via PR #8 |
+| 2026-02-13 | #13 | **F03c Loan Dashboard complete**: Visual dashboard with progress bars, urgency icons (🔴🟠🟡🟢), due date countdowns, summary totals (remaining debt + monthly obligation), paid-off list. Added /hutang shortcut command. New handler: `dashboard.ts`. |

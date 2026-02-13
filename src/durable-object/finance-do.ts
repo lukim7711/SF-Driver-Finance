@@ -3,7 +3,7 @@
  * Each user gets their own Durable Object instance (keyed by Telegram user ID).
  * Contains SQLite database for all financial data and conversation state.
  *
- * Phase 3: Loan tracking — registration, payment, dashboard, alerts.
+ * Phase 3: Loan tracking — registration, payment, dashboard, alerts, penalty calculator.
  */
 
 import type { Env } from "../index";
@@ -36,6 +36,7 @@ import {
 import { handlePaymentFromAI, handlePaymentConfirmed } from "../handlers/payment";
 import { handleLoanDashboard } from "../handlers/dashboard";
 import { checkAndSendAlerts, ensureAlertMetaTable } from "../handlers/alerts";
+import { handleLateFeeCalculator } from "../handlers/late-fee-calc";
 import { detectIntent } from "../ai/intent-detector";
 import { ensureNeuronTable, getNeuronCount, incrementNeuronCount } from "../ai/neuron-tracker";
 import { sendText, answerCallbackQuery, editMessageText } from "../telegram/api";
@@ -60,7 +61,7 @@ function getTodayDate(): string {
  */
 const INTENT_KEYWORDS = [
   // loan/debt
-  "hutang", "pinjam", "pinjol", "daftar pinjaman", "cicilan", "bayar",
+  "hutang", "pinjam", "pinjol", "daftar pinjaman", "cicilan", "bayar", "denda",
   // income
   "dapet", "dapat", "income", "penghasilan",
   // expense
@@ -152,7 +153,8 @@ export class FinanceDurableObject implements DurableObject {
 
     // Step 1: Handle bot commands
     if (text.startsWith("/")) {
-      const command = text.split(/\s+/)[0]!.toLowerCase();
+      const parts = text.split(/\s+/);
+      const command = parts[0]!.toLowerCase();
 
       switch (command) {
         case "/start": {
@@ -172,6 +174,12 @@ export class FinanceDurableObject implements DurableObject {
         case "/hutang": {
           // Shortcut command for loan dashboard — no AI needed
           await handleLoanDashboard(token, chatId, this.db, todayDate);
+          return;
+        }
+        case "/denda": {
+          // Late fee calculator — /denda or /denda Kredivo
+          const platformArg = parts.slice(1).join(" ").trim() || undefined;
+          await handleLateFeeCalculator(token, chatId, this.db, todayDate, platformArg);
           return;
         }
         default: {
@@ -350,7 +358,8 @@ export class FinanceDurableObject implements DurableObject {
           "\u2022 <i>\"Bensin 20rb\"</i> \u2014 catat pengeluaran\n" +
           "\u2022 <i>\"Kredivo 5jt 12 bulan 500rb/bln\"</i> \u2014 daftar pinjaman\n" +
           "\u2022 <i>\"Bayar cicilan Kredivo\"</i> \u2014 catat pembayaran\n" +
-          "\u2022 <i>\"Lihat hutang\"</i> \u2014 cek pinjaman\n\n" +
+          "\u2022 <i>\"Lihat hutang\"</i> \u2014 cek pinjaman\n" +
+          "\u2022 /denda \u2014 hitung denda\n\n" +
           "Ketik /help untuk panduan lengkap."
         );
         return;

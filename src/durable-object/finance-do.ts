@@ -3,7 +3,7 @@
  * Each user gets their own Durable Object instance (keyed by Telegram user ID).
  * Contains SQLite database for all financial data and conversation state.
  *
- * Phase 3: Loan tracking — registration, payment recording, dashboard.
+ * Phase 3: Loan tracking — registration, payment, dashboard, alerts.
  */
 
 import type { Env } from "../index";
@@ -35,6 +35,7 @@ import {
 } from "../handlers/loan";
 import { handlePaymentFromAI, handlePaymentConfirmed } from "../handlers/payment";
 import { handleLoanDashboard } from "../handlers/dashboard";
+import { checkAndSendAlerts, ensureAlertMetaTable } from "../handlers/alerts";
 import { detectIntent } from "../ai/intent-detector";
 import { ensureNeuronTable, getNeuronCount, incrementNeuronCount } from "../ai/neuron-tracker";
 import { sendText, answerCallbackQuery, editMessageText } from "../telegram/api";
@@ -103,6 +104,7 @@ export class FinanceDurableObject implements DurableObject {
     initializeDatabase(this.db);
     ensureConversationStateTable(this.db);
     ensureNeuronTable(this.db);
+    ensureAlertMetaTable(this.db);
     this.initialized = true;
   }
 
@@ -131,7 +133,7 @@ export class FinanceDurableObject implements DurableObject {
 
   /**
    * Handle an incoming text/photo message from the user.
-   * Flow: Command → Cancel → Conversation State → AI Intent Detection → Route
+   * Flow: Alerts → Command → Cancel → Conversation State → AI Intent Detection → Route
    */
   private async handleMessage(message: TelegramMessage): Promise<void> {
     const chatId = message.chat.id;
@@ -144,6 +146,9 @@ export class FinanceDurableObject implements DurableObject {
     const telegramId = from.id.toString();
     const userName = [from.first_name, from.last_name].filter(Boolean).join(" ") || "Driver";
     const todayDate = getTodayDate();
+
+    // Step 0: Proactive due date alerts (throttled, fires before normal response)
+    await checkAndSendAlerts(token, chatId, this.db, todayDate);
 
     // Step 1: Handle bot commands
     if (text.startsWith("/")) {

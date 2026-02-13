@@ -3,7 +3,7 @@
  * Each user gets their own Durable Object instance (keyed by Telegram user ID).
  * Contains SQLite database for all financial data and conversation state.
  *
- * Phase 3: Loan tracking — registration, payment, dashboard, alerts, penalty calculator.
+ * Phase 3: Loan tracking — registration, payment, dashboard, alerts, penalty calculator, monthly summary.
  */
 
 import type { Env } from "../index";
@@ -37,6 +37,7 @@ import { handlePaymentFromAI, handlePaymentConfirmed } from "../handlers/payment
 import { handleLoanDashboard } from "../handlers/dashboard";
 import { checkAndSendAlerts, ensureAlertMetaTable } from "../handlers/alerts";
 import { handleLateFeeCalculator } from "../handlers/late-fee-calc";
+import { handleMonthlySummary } from "../handlers/monthly-summary";
 import { detectIntent } from "../ai/intent-detector";
 import { ensureNeuronTable, getNeuronCount, incrementNeuronCount } from "../ai/neuron-tracker";
 import { sendText, answerCallbackQuery, editMessageText } from "../telegram/api";
@@ -67,7 +68,7 @@ const INTENT_KEYWORDS = [
   // expense
   "bensin", "parkir", "makan", "rokok", "pulsa", "servis", "listrik",
   // view/report
-  "lihat", "cek", "status", "laporan", "rekap", "report",
+  "lihat", "cek", "status", "laporan", "rekap", "report", "ringkasan",
   // other
   "target", "bantuan",
 ];
@@ -180,6 +181,12 @@ export class FinanceDurableObject implements DurableObject {
           // Late fee calculator — /denda or /denda Kredivo
           const platformArg = parts.slice(1).join(" ").trim() || undefined;
           await handleLateFeeCalculator(token, chatId, this.db, todayDate, platformArg);
+          return;
+        }
+        case "/ringkasan": {
+          // Monthly obligation summary — /ringkasan or /ringkasan 3 or /ringkasan 2026-03
+          const monthArg = parts.slice(1).join(" ").trim() || undefined;
+          await handleMonthlySummary(token, chatId, this.db, todayDate, monthArg);
           return;
         }
         default: {
@@ -332,7 +339,8 @@ export class FinanceDurableObject implements DurableObject {
       }
 
       case "view_report": {
-        await sendText(token, chatId, "\ud83d\udcca Fitur laporan keuangan akan hadir segera!");
+        // Route view_report to monthly summary for now
+        await handleMonthlySummary(token, chatId, this.db, todayDate);
         return;
       }
 
@@ -354,12 +362,13 @@ export class FinanceDurableObject implements DurableObject {
           chatId,
           "\ud83e\udd14 Maaf, aku belum mengerti pesanmu.\n\n" +
           "Coba kirim seperti:\n" +
-          "\u2022 <i>\"Dapet 150rb food\"</i> \u2014 catat pendapatan\n" +
-          "\u2022 <i>\"Bensin 20rb\"</i> \u2014 catat pengeluaran\n" +
-          "\u2022 <i>\"Kredivo 5jt 12 bulan 500rb/bln\"</i> \u2014 daftar pinjaman\n" +
-          "\u2022 <i>\"Bayar cicilan Kredivo\"</i> \u2014 catat pembayaran\n" +
-          "\u2022 <i>\"Lihat hutang\"</i> \u2014 cek pinjaman\n" +
-          "\u2022 /denda \u2014 hitung denda\n\n" +
+          "\u2022 <i>\"Dapet 150rb food\"</i> — catat pendapatan\n" +
+          "\u2022 <i>\"Bensin 20rb\"</i> — catat pengeluaran\n" +
+          "\u2022 <i>\"Kredivo 5jt 12 bulan 500rb/bln\"</i> — daftar pinjaman\n" +
+          "\u2022 <i>\"Bayar cicilan Kredivo\"</i> — catat pembayaran\n" +
+          "\u2022 <i>\"Lihat hutang\"</i> — cek pinjaman\n" +
+          "\u2022 /denda — hitung denda\n" +
+          "\u2022 /ringkasan — ringkasan bulan ini\n\n" +
           "Ketik /help untuk panduan lengkap."
         );
         return;

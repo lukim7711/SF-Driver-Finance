@@ -8,7 +8,7 @@
 ## Current Phase: Phase 3 IN PROGRESS 🔧
 
 **Last Updated**: 2026-02-13  
-**Last Session Summary**: F03a Register Loan — redesigned from 7-step wizard to hybrid conversational flow. AI extracts loan params from natural language, shows smart confirmation, mini-wizard only for missing fields. Added intent guard to prevent confusion when user types new intent during active wizard.
+**Last Session Summary**: F03b Record Payment — complete installment payment recording with fuzzy platform matching, late fee calculation, automatic loan status updates, and natural language support ("bayar cicilan Kredivo").
 
 ---
 
@@ -40,7 +40,7 @@
 
 ## Implementation Status
 
-### Source Files (24 files on `main`)
+### Source Files (25 files on `feat/f03b-record-payment` branch)
 
 #### Entry Point & Config
 
@@ -67,14 +67,14 @@
 |---|---|---|
 | `src/types/telegram.ts` | ✅ Done | TelegramUpdate, TelegramMessage, TelegramCallbackQuery, InlineKeyboardMarkup, SendMessageParams, etc. |
 | `src/types/conversation.ts` | ✅ Done | PendingAction union type (`confirm_ocr`, `confirm_income`, `confirm_expense`, `confirm_loan`, `loan_fill_missing`, `loan_edit_select`, `loan_edit_field`, `confirm_payment`, `edit_transaction`), ConversationState interface |
-| `src/types/intent.ts` | ✅ Done | IntentType (10 intents), IncomeType, ExpenseCategory (10 categories), IncomeParams, ExpenseParams, RegisterLoanParams (8 optional fields), IntentResult, IntentResultWithProvider |
+| `src/types/intent.ts` | ✅ Done | IntentType (10 intents), IncomeType, ExpenseCategory (10 categories), IncomeParams, ExpenseParams, RegisterLoanParams (8 optional fields), PayInstallmentParams, IntentResult, IntentResultWithProvider |
 | `src/types/loan.ts` | ✅ Done | LateFeeType, LoanStatus, InstallmentStatus, LoanRegistrationData, LoanRow, InstallmentRow |
 
 #### Durable Object (`src/durable-object/`)
 
 | File | Status | Description |
 |---|---|---|
-| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, message routing (command → cancel → conversation state → intent guard → AI intent → route), callback query handling (income/expense/loan confirm/edit/cancel). Includes `looksLikeNewIntent()` guard for active wizard states. |
+| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, message routing (command → cancel → conversation state → intent guard → AI intent → route), callback query handling (income/expense/loan/payment confirm/edit/cancel). Includes `looksLikeNewIntent()` guard for active wizard states. |
 
 #### Database Layer (`src/database/`)
 
@@ -85,7 +85,7 @@
 | `src/database/conversation.ts` | ✅ Done | ensureConversationStateTable, getConversationState, setConversationState, clearConversationState |
 | `src/database/income.ts` | ✅ Done | recordIncome, getTodayIncome (grouped by food/spx) |
 | `src/database/expense.ts` | ✅ Done | recordExpense, getTodayExpenses (grouped by category), CATEGORY_LABELS map |
-| `src/database/loan.ts` | ✅ Done | registerLoan (insert loan + auto-generate installment rows), getLoans, getLoanById, getInstallments, getUpcomingInstallments |
+| `src/database/loan.ts` | ✅ Done | registerLoan (insert loan + auto-generate installment rows), getLoans, getLoanById, getInstallmentsByLoan, getUpcomingInstallments, markInstallmentPaid (update status + late fee + increment counter + auto-mark loan as paid_off) |
 
 #### AI Layer (`src/ai/`)
 
@@ -106,6 +106,7 @@
 | `src/handlers/income.ts` | ✅ Done | handleIncomeConfirmation (show confirmation keyboard), processIncomeConfirmed (save + show today's totals), formatRupiah helper |
 | `src/handlers/expense.ts` | ✅ Done | handleExpenseConfirmation (show confirmation keyboard with category emoji), processExpenseConfirmed (save + show category breakdown) |
 | `src/handlers/loan.ts` | ✅ Done | Hybrid conversational loan registration: handleLoanFromAI (AI extraction → smart confirmation), handleMissingFieldInput (mini-wizard for gaps), handleLoanConfirmSave/Edit, handleLateFeeTypeCallback, handleEditSelection/EditFieldInput, parseAmount (supports jt/rb/k shorthand) |
+| `src/handlers/payment.ts` | ✅ Done | Installment payment recording: handlePaymentFromAI (fuzzy platform matching → find next unpaid installment → show confirmation with due date + late fee), handlePaymentConfirmed (mark as paid + update loan counter + check if paid_off), calculateLateFee (percent_monthly, percent_daily, fixed) |
 
 ### Features Implementation
 
@@ -118,7 +119,7 @@
 | F01 | Record Income | ✅ Done | 2 | `handlers/income.ts`, `database/income.ts` |
 | F02 | Record Expenses | ✅ Done | 2 | `handlers/expense.ts`, `database/expense.ts` |
 | F03a | Register Loan | ✅ Done | 3 | `handlers/loan.ts`, `database/loan.ts`, `types/loan.ts`, `types/intent.ts` |
-| F03b | Record Installment Payment | 🔲 Not Started | 3 | — |
+| F03b | Record Installment Payment | ✅ Done | 3 | `handlers/payment.ts`, `database/loan.ts` (markInstallmentPaid) |
 | F03c | View Loan Dashboard | 🔲 Not Started | 3 | — |
 | F03d | Due Date Alerts | 🔲 Not Started | 3 | — |
 | F03e | Late Fee Calculator | 🔲 Not Started | 3 | — |
@@ -149,6 +150,8 @@
 - **Workers AI response format**: Newer models (Qwen3) return OpenAI-compatible chat completion format, not the simple `{ response }` format shown in Cloudflare docs.
 - **CI runs twice per push to PR branch**: GitHub Actions fires both `push` and `pull_request` events. Can optimize later by restricting `push` trigger to `main` only.
 - **Loan UX design**: Conversational-first (AI extraction → confirm) is much better than step-by-step wizards for chat-based interfaces. Users provide most info in one message.
+- **Payment recording**: Fuzzy platform name matching (case-insensitive substring) works well for natural language ("bayar shopee" matches "Shopee Pinjam").
+- **Late fee calculation**: Built directly into payment handler — calculates on-the-fly based on days overdue and loan's late_fee_type.
 
 ---
 
@@ -169,8 +172,8 @@ Phased approach — build foundation first, then layer features:
 
 ### Phase 3: Loan Tracking (Critical) ← IN PROGRESS
 8. ~~**F03a — Register Loan**~~ → ✅ Done (hybrid conversational flow + intent guard)
-9. **F03b — Record Payment** → Mark installments as paid ← NEXT
-10. **F03c — Loan Dashboard** → View all loans and status
+9. ~~**F03b — Record Payment**~~ → ✅ Done (fuzzy platform match + late fee calc + auto paid_off)
+10. **F03c — Loan Dashboard** → View all loans and status ← NEXT
 11. **F03d — Due Date Alerts** → Countdown warnings
 12. **F03e — Late Fee Calculator** → Calculate penalties
 13. **F03f — Monthly Summary** → Aggregate obligations
@@ -200,9 +203,9 @@ Phased approach — build foundation first, then layer features:
 
 **Continue Phase 3: Loan Tracking**
 
-1. **F03b — Record Installment Payment**: User says "bayar cicilan Kredivo" → show upcoming installment → confirm → mark as paid
-2. **F03c — Loan Dashboard**: "lihat hutang" → show all active loans with progress bars, next due dates, remaining amounts
-3. Then F03d–F03g as time permits
+1. **F03c — Loan Dashboard**: "lihat hutang" → show all active loans with progress bars, next due dates, remaining amounts
+2. **F03d — Due Date Alerts**: Check upcoming/overdue installments on every message, show warnings
+3. Then F03e–F03g as time permits
 
 ---
 
@@ -221,3 +224,4 @@ Phased approach — build foundation first, then layer features:
 | 2026-02-12 | #9 | **Phase 1 complete**: F09 Onboarding + F10 Commands. Telegram webhook, /start, /help, /batal, DB schema init (7 tables), conversation state infra, Telegram API client. Deployed via PR #2 → PR #3 |
 | 2026-02-12 | #10 | **Phase 2 complete**: F06 Intent Detection + F08 AI Fallback + F01 Income + F02 Expense. AI prompt for Indonesian NLP, dual-provider orchestrator (Workers AI + DeepSeek), income/expense recording with inline keyboard confirmation, Neuron tracking. Fixed 3 runtime bugs: .one() crash, Workers AI response format, TS type error. Deployed via PR #4 + hotfixes |
 | 2026-02-13 | #11 | **F03a Register Loan complete**: Redesigned 7-step wizard → hybrid conversational flow. AI extracts loan params from natural language → smart confirmation → mini-wizard for missing fields only. Edit mode (pick 1-7). Intent guard for active wizard. Deployed via PR #5 → PR #6 → PR #7 |
+| 2026-02-13 | #12 | **F03b Record Payment complete**: Installment payment recording with fuzzy platform matching, late fee calculation (percent_monthly/daily/fixed), auto loan status update to paid_off when all installments are paid. Natural language support ("bayar cicilan Kredivo"). New handler: `payment.ts`. Updated `loan.ts` with `markInstallmentPaid()` and `getInstallmentsByLoan()`. |

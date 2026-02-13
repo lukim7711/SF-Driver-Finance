@@ -3,7 +3,7 @@
  * Each user gets their own Durable Object instance (keyed by Telegram user ID).
  * Contains SQLite database for all financial data and conversation state.
  *
- * Phase 3: Loan tracking — registration + payment recording.
+ * Phase 3: Loan tracking — registration, payment recording, dashboard.
  */
 
 import type { Env } from "../index";
@@ -34,6 +34,7 @@ import {
   handleEditFieldInput,
 } from "../handlers/loan";
 import { handlePaymentFromAI, handlePaymentConfirmed } from "../handlers/payment";
+import { handleLoanDashboard } from "../handlers/dashboard";
 import { detectIntent } from "../ai/intent-detector";
 import { ensureNeuronTable, getNeuronCount, incrementNeuronCount } from "../ai/neuron-tracker";
 import { sendText, answerCallbackQuery, editMessageText } from "../telegram/api";
@@ -161,6 +162,11 @@ export class FinanceDurableObject implements DurableObject {
         case "/batal": {
           const hadState = clearConversationState(this.db);
           await handleCancelCommand(token, chatId, hadState);
+          return;
+        }
+        case "/hutang": {
+          // Shortcut command for loan dashboard — no AI needed
+          await handleLoanDashboard(token, chatId, this.db, todayDate);
           return;
         }
         default: {
@@ -308,7 +314,7 @@ export class FinanceDurableObject implements DurableObject {
       }
 
       case "view_loans": {
-        await sendText(token, chatId, "\ud83c\udfe6 Fitur lihat hutang akan hadir segera!");
+        await handleLoanDashboard(token, chatId, this.db, todayDate);
         return;
       }
 

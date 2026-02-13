@@ -110,13 +110,21 @@ export function getLoanById(db: SqlStorage, loanId: number): LoanRow | null {
 }
 
 /**
- * Get all installments for a loan.
+ * Get all installments for a loan (ordered by installment_no).
  */
-export function getInstallments(db: SqlStorage, loanId: number): InstallmentRow[] {
+export function getInstallmentsByLoan(db: SqlStorage, loanId: number): InstallmentRow[] {
   return db.exec(
     "SELECT * FROM installments WHERE loan_id = ? ORDER BY installment_no ASC",
     loanId
   ).toArray() as unknown as InstallmentRow[];
+}
+
+/**
+ * Get all installments for a loan.
+ * @deprecated Use getInstallmentsByLoan instead
+ */
+export function getInstallments(db: SqlStorage, loanId: number): InstallmentRow[] {
+  return getInstallmentsByLoan(db, loanId);
 }
 
 /**
@@ -141,4 +149,77 @@ export function getUpcomingInstallments(
     todayDate,
     endDateStr
   ).toArray() as unknown as Array<InstallmentRow & { platform: string }>;
+}
+
+/**
+ * Mark an installment as paid.
+ * Updates installment record and increments loan's paid_installments counter.
+ * If all installments are paid, marks the loan as paid_off.
+ *
+ * @param db - SqlStorage instance
+ * @param installmentId - ID of the installment to mark as paid
+ * @param paidAmount - Amount paid (including late fees if any)
+ * @param lateFee - Late fee charged
+ * @param paidDate - Date when payment was made (YYYY-MM-DD)
+ */
+export function markInstallmentPaid(
+  db: SqlStorage,
+  installmentId: number,
+  paidAmount: number,
+  lateFee: number,
+  paidDate: string
+): void {
+  // Get the installment to find its loan_id
+  const installmentResult = db.exec(
+    "SELECT loan_id, amount FROM installments WHERE id = ?",
+    installmentId
+  ).toArray();
+
+  if (installmentResult.length === 0) {
+    throw new Error("Installment not found");
+  }
+
+  const installment = installmentResult[0] as unknown as { loan_id: number; amount: number };
+  const loanId = installment.loan_id;
+
+  // Update installment status
+  db.exec(
+    `UPDATE installments
+     SET status = 'paid',
+         paid_amount = ?,
+         late_fee = ?,
+         paid_date = ?,
+         updated_at = datetime('now')
+     WHERE id = ?`,
+    paidAmount,
+    lateFee,
+    paidDate,
+    installmentId
+  );
+
+  // Increment loan's paid_installments counter
+  db.exec(
+    `UPDATE loans
+     SET paid_installments = paid_installments + 1,
+         updated_at = datetime('now')
+     WHERE id = ?`,
+    loanId
+  );
+
+  // Check if all installments are now paid
+  const loanResult = db.exec(
+    "SELECT total_installments, paid_installments FROM loans WHERE id = ?",
+    loanId
+  ).toArray();
+
+  if (loanResult.length > 0) {
+    const loan = loanResult[0] as unknown as { total_installments: number; paid_installments: number };
+    if (loan.paid_installments >= loan.total_installments) {
+      // Mark loan as paid off
+      db.exec(
+        "UPDATE loans SET status = 'paid_off', updated_at = datetime('now') WHERE id = ?",
+        loanId
+      );
+    }
+  }
 }

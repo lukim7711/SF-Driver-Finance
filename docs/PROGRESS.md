@@ -5,10 +5,10 @@
 
 ---
 
-## Current Phase: Phase 3 IN PROGRESS 🔧
+## Current Phase: Phase 3 COMPLETE ✅
 
 **Last Updated**: 2026-02-13  
-**Last Session Summary**: F03f Monthly Obligation Summary — /ringkasan command shows comprehensive monthly overview with income/expense totals, installment status breakdown, debt ratio indicator, per-loan detail, and actionable footer.
+**Last Session Summary**: F03g Payoff Progress — /progres command shows overall debt reduction tracker with big progress bar, grand totals (paid/remaining), projected payoff date, per-loan progress bars sorted by completion, paid-off celebration section, and motivational messages. Phase 3 (Loan Tracking) is now fully complete!
 
 ---
 
@@ -40,7 +40,7 @@
 
 ## Implementation Status
 
-### Source Files (30 files on `feat/f03f-monthly-summary` branch)
+### Source Files (31 files on `feat/f03g-payoff-progress` branch)
 
 #### Entry Point & Config
 
@@ -74,7 +74,7 @@
 
 | File | Status | Description |
 |---|---|---|
-| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, proactive alerts (Step 0), message routing (command → cancel → conversation state → intent guard → AI intent → route), callback query handling. /hutang, /denda, /ringkasan shortcut commands. view_report intent → monthly summary. |
+| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, proactive alerts (Step 0), message routing (command → cancel → conversation state → intent guard → AI intent → route), callback query handling. /hutang, /denda, /ringkasan, /progres shortcut commands. view_report intent → monthly summary. |
 
 #### Database Layer (`src/database/`)
 
@@ -112,6 +112,7 @@
 | `src/handlers/alerts.ts` | ✅ Done | Proactive due date alerts: checkAndSendAlerts (throttled 1x/6hr via _alert_meta table), getAlertableInstallments (overdue + within 3 days), ensureAlertMetaTable. Urgency levels: 🔴 TELAT BAYAR, ⚠️ JATUH TEMPO HARI INI, 🟡 SEGERA JATUH TEMPO. |
 | `src/handlers/late-fee-calc.ts` | ✅ Done | Late fee calculator: handleLateFeeCalculator — /denda or /denda [platform]. Per-installment breakdown (days late, pokok, denda, total), fee type explanation, subtotals per loan, grand total across all loans. Exported calculateLateFee for reuse. Actionable tips. |
 | `src/handlers/monthly-summary.ts` | ✅ Done | Monthly obligation summary: handleMonthlySummary — /ringkasan or /ringkasan [month]. Income/expense totals with net/deficit, installment stats (paid/overdue/upcoming) with progress bar, debt ratio indicator (✅/<30%, 🟡 30-50%, ⚠️ >50%), per-loan breakdown with status icons, actionable footer. |
+| `src/handlers/payoff-progress.ts` | ✅ Done | Payoff progress tracker: handlePayoffProgress — /progres. Big 20-char progress bar, grand totals (debt/paid/remaining), projected payoff date, per-loan progress (sorted by completion %), paid-off celebration section, motivational messages (5 tiers). |
 
 ### Features Implementation
 
@@ -129,7 +130,7 @@
 | F03d | Due Date Alerts | ✅ Done | 3 | `handlers/alerts.ts`, `durable-object/finance-do.ts` (Step 0) |
 | F03e | Late Fee Calculator | ✅ Done | 3 | `handlers/late-fee-calc.ts`, `durable-object/finance-do.ts` (/denda) |
 | F03f | Monthly Obligation Summary | ✅ Done | 3 | `handlers/monthly-summary.ts`, `database/monthly.ts`, `durable-object/finance-do.ts` (/ringkasan) |
-| F03g | Payoff Progress | 🔲 Not Started | 3 | — |
+| F03g | Payoff Progress | ✅ Done | 3 | `handlers/payoff-progress.ts`, `durable-object/finance-do.ts` (/progres) |
 | F04 | Income Targets | 🔲 Not Started | 4 | — |
 | F05 | OCR (ocr.space) | 🔲 Not Started | 4 | — |
 | F07 | Financial Reports | 🔲 Not Started | 4 | — |
@@ -160,7 +161,9 @@
 - **Dashboard**: `/hutang` shortcut command bypasses AI — saves Neurons for a purely read-only operation.
 - **Alert throttling**: Using `_alert_meta` key-value table with timestamp. 6-hour cooldown prevents spam while ensuring driver sees warnings at least twice per active day.
 - **Penalty calculator**: `/denda` also bypasses AI. Shows projected penalties based on current date.
-- **Monthly summary**: `/ringkasan` bypasses AI. Routes `view_report` AI intent to monthly summary. Supports month argument (`/ringkasan 3` for March, `/ringkasan 2026-03`). Shows debt-to-income ratio health indicator.
+- **Monthly summary**: `/ringkasan` bypasses AI. Routes `view_report` AI intent to monthly summary. Supports month argument.
+- **Payoff progress**: `/progres` bypasses AI. Shows all loans (active + paid_off) for full historical picture. Sorted by completion % (closest to payoff first). Projected payoff date uses simple months-remaining calculation.
+- **All 5 shortcut commands** (`/hutang`, `/denda`, `/ringkasan`, `/progres`, `/help`) bypass AI → zero Neuron cost for read-only operations.
 
 ---
 
@@ -179,16 +182,16 @@ Phased approach — build foundation first, then layer features:
 6. ~~**F01 — Record Income**~~ → Done (confirmation keyboard → save → today's totals)
 7. ~~**F02 — Record Expenses**~~ → Done (confirmation keyboard → save → category breakdown)
 
-### Phase 3: Loan Tracking (Critical) ← IN PROGRESS
+### Phase 3: Loan Tracking ✅ COMPLETE
 8. ~~**F03a — Register Loan**~~ → ✅ Done (hybrid conversational flow + intent guard)
 9. ~~**F03b — Record Payment**~~ → ✅ Done (fuzzy platform match + late fee calc + auto paid_off)
 10. ~~**F03c — Loan Dashboard**~~ → ✅ Done (progress bars, urgency icons, summary totals, /hutang command)
 11. ~~**F03d — Due Date Alerts**~~ → ✅ Done (proactive alerts, throttled 1x/6hr, 3 urgency levels)
 12. ~~**F03e — Late Fee Calculator**~~ → ✅ Done (/denda command, per-installment breakdown, grand totals)
 13. ~~**F03f — Monthly Summary**~~ → ✅ Done (/ringkasan command, income vs obligations, debt ratio, per-loan detail)
-14. **F03g — Payoff Progress** → Track overall progress ← NEXT
+14. ~~**F03g — Payoff Progress**~~ → ✅ Done (/progres command, big progress bar, projected payoff, per-loan progress, motivational messages)
 
-### Phase 4: Advanced
+### Phase 4: Advanced ← NEXT
 15. **F04 — Income Targets** → Goal setting
 16. **F05 — OCR** → Receipt/screenshot reading (chat-based confirmation)
 17. **F07 — Financial Reports** → Comprehensive summaries
@@ -208,12 +211,30 @@ Phased approach — build foundation first, then layer features:
 
 ---
 
+## Bot Commands Reference
+
+| Command | Description | AI Cost |
+|---|---|---|
+| `/start` | Register & welcome | None |
+| `/help` | Usage guide | None |
+| `/batal` | Cancel active wizard | None |
+| `/hutang` | Loan dashboard | None |
+| `/denda` | Late fee calculator | None |
+| `/denda [platform]` | Filter penalty by platform | None |
+| `/ringkasan` | Monthly obligation summary | None |
+| `/ringkasan [month]` | Summary for specific month | None |
+| `/progres` | Payoff progress tracker | None |
+| Natural language | AI-powered intent detection | ~5 Neurons |
+
+---
+
 ## Next Steps (For Next Session)
 
-**Complete Phase 3: Loan Tracking**
+**Start Phase 4: Advanced Features**
 
-1. **F03g — Payoff Progress**: Overall debt reduction tracker — total debt at start vs now, percentage paid off, projected payoff date
-2. After F03g, Phase 3 is complete → move to Phase 4
+1. **F04 — Income Targets**: Daily/weekly/monthly income goals with progress tracking
+2. **F05 — OCR**: Receipt/screenshot reading via ocr.space
+3. **F07 — Financial Reports**: Comprehensive weekly/monthly financial reports
 
 ---
 
@@ -236,4 +257,5 @@ Phased approach — build foundation first, then layer features:
 | 2026-02-13 | #13 | **F03c Loan Dashboard complete**: Visual dashboard with progress bars, urgency icons, due date countdowns, summary totals. /hutang shortcut command. Deployed via PR #9 |
 | 2026-02-13 | #14 | **F03d Due Date Alerts complete**: Proactive alerts on every message (throttled 1x/6hr via _alert_meta table). 3 urgency levels. Deployed via PR #10 |
 | 2026-02-13 | #15 | **F03e Late Fee Calculator complete**: /denda command with per-installment penalty breakdown, fee type display, grand totals, actionable tips. Deployed via PR #11 |
-| 2026-02-13 | #16 | **F03f Monthly Summary complete**: /ringkasan command — income/expense totals, installment stats with progress bar, debt ratio health indicator, per-loan breakdown with status icons, actionable footer. New DB layer: `database/monthly.ts`. view_report AI intent routed to monthly summary. |
+| 2026-02-13 | #16 | **F03f Monthly Summary complete**: /ringkasan command — income/expense totals, installment stats with progress bar, debt ratio health indicator, per-loan breakdown with status icons, actionable footer. Deployed via PR #12 |
+| 2026-02-13 | #17 | **F03g Payoff Progress complete — PHASE 3 DONE!** /progres command — big 20-char progress bar, grand totals, projected payoff date, per-loan progress sorted by completion, paid-off celebration, motivational messages (5 tiers). Added Bot Commands Reference to PROGRESS.md. |

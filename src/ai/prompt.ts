@@ -14,22 +14,39 @@ export function buildIntentPrompt(userMessage: string, todayDate: string): strin
 Your job: detect the user's intent from their message and extract parameters.
 
 IMPORTANT RULES:
-- The user writes in casual Indonesian (e.g., "20rb" = 20000, "45k" = 45000, "1.5jt" = 1500000)
+- The user writes in VERY casual/slang Indonesian (bahasa gaul/informal)
+- Common slang: "gue/gw" = saya, "lu/lo" = kamu, "berapah/brp" = berapa, "gak/ga/kagak" = tidak, "udah/dah" = sudah, "gimana/gmn" = bagaimana, "banget/bgt" = sekali, "emang" = memang, "kalo/kl" = kalau
+- Shorthand amounts: "20rb" = 20000, "45k" = 45000, "1.5jt" = 1500000, "5juta" = 5000000
 - Convert all shorthand amounts to full numbers
 - Today's date is ${todayDate} (use this if no specific date mentioned)
+- If the user is ASKING about debt/loans/penalties (not registering), use view_loans/view_penalty/view_progress intent
+- If the user is REGISTERING a new loan (providing platform name + details), use register_loan intent
 - Respond ONLY with valid JSON, no extra text
 
 INTENTS:
 1. "record_income" — user earned money from delivery
    params: { "amount": number, "type": "food"|"spx", "note": string|null, "date": "YYYY-MM-DD" }
-   Examples: "dapet 45rb food", "spx 30000", "hari ini income 150k dari makanan"
+   Examples:
+   - "dapet 45rb food" → record_income
+   - "spx 30000" → record_income
+   - "hari ini income 150k dari makanan" → record_income
+   - "gue dapet 200rb hari ini dari spx" → record_income
+   - "tadi dapet orderan 85rb" → record_income
+   - "penghasilan gw hari ini 300rb" → record_income
 
 2. "record_expense" — user spent money
    params: { "amount": number, "category": string, "note": string|null, "date": "YYYY-MM-DD" }
    Categories: "fuel" (bensin/BBM), "parking" (parkir), "meals" (makan/minum), "cigarettes" (rokok), "data_plan" (pulsa/data/kuota), "vehicle_service" (servis/bengkel/ban), "household" (rumah/belanja), "electricity" (listrik/air/PLN), "emergency" (darurat), "other" (lainnya)
-   Examples: "bensin 20rb", "parkir 5000", "makan siang 15rb", "rokok 30rb", "servis motor 150rb"
+   Examples:
+   - "bensin 20rb" → record_expense
+   - "parkir 5000" → record_expense
+   - "makan siang 15rb" → record_expense
+   - "rokok 30rb" → record_expense
+   - "servis motor 150rb" → record_expense
+   - "abis buat bensin 50rb" → record_expense
 
-3. "register_loan" — user wants to add a new loan/debt. EXTRACT ALL loan details mentioned.
+3. "register_loan" — user wants to ADD/REGISTER a NEW loan/debt with DETAILS
+   ONLY use this when the user provides specific loan details (platform name + amounts/terms).
    params: {
      "platform": string|null,
      "original_amount": number|null,
@@ -53,37 +70,90 @@ INTENTS:
    - If user says "X% per bulan" or "X%/bln", set late_fee_type="percent_monthly", late_fee_value=X
    - If user says "X% per hari", set late_fee_type="percent_daily", late_fee_value=X
    Examples:
-   - "pinjol kredivo 5jt 12 bulan 500rb per bulan no denda" → platform="Kredivo", original_amount=5000000, total_installments=12, monthly_amount=500000, late_fee_type="none", late_fee_value=0
-   - "hutang shopee 3.5jt total 4.9jt 10x tanggal 13 denda 5%/bln" → platform="Shopee Pinjam", original_amount=3500000, total_with_interest=4900000, total_installments=10, due_day=13, late_fee_type="percent_monthly", late_fee_value=5
-   - "pinjam seabank 1.5jt 7 bulan 232rb tanggal 5 denda 0.25% per hari" → platform="SeaBank Pinjam", original_amount=1500000, total_installments=7, monthly_amount=232000, due_day=5, late_fee_type="percent_daily", late_fee_value=0.25
-   - "daftar hutang" → all params null (user just wants to start)
-   - "pinjam uang ke yono 500rb" → platform="Yono", original_amount=500000
+   - "pinjol kredivo 5jt 12 bulan 500rb per bulan no denda" → register_loan
+   - "hutang shopee 3.5jt total 4.9jt 10x tanggal 13 denda 5%/bln" → register_loan
+   - "pinjam seabank 1.5jt 7 bulan 232rb tanggal 5 denda 0.25% per hari" → register_loan
+   - "daftar hutang" → register_loan (all params null, user wants to start)
+   - "pinjam uang ke yono 500rb" → register_loan
+   - "gue mau daftar pinjaman baru" → register_loan
+   - "tambahin hutang akulaku 2jt" → register_loan
 
-4. "pay_installment" — user paid a loan installment
+4. "pay_installment" — user paid or wants to record a loan installment payment
    params: { "platform": string }
-   Examples: "bayar cicilan Kredivo", "sudah bayar SeaBank", "lunas Shopee Pinjam bulan ini"
+   Examples:
+   - "bayar cicilan Kredivo" → pay_installment
+   - "sudah bayar SeaBank" → pay_installment
+   - "lunas Shopee Pinjam bulan ini" → pay_installment
+   - "gue udah bayar cicilan kredivo" → pay_installment
+   - "baru bayar akulaku" → pay_installment
 
-5. "view_loans" — user wants to see loan status
+5. "view_loans" — user wants to SEE/CHECK loan status, how much debt they have
    params: {}
-   Examples: "lihat hutang", "cek pinjaman", "status cicilan"
+   Use this when user is ASKING about their loans, NOT registering new ones.
+   Examples:
+   - "lihat hutang" → view_loans
+   - "cek pinjaman" → view_loans
+   - "status cicilan" → view_loans
+   - "hutang gue berapa" → view_loans
+   - "hutang gue berapah" → view_loans
+   - "berapa total hutang gw" → view_loans
+   - "cek hutang" → view_loans
+   - "list pinjaman" → view_loans
+   - "mau liat hutang" → view_loans
+   - "total hutang gue berapa sih" → view_loans
+   - "kasih tau hutang gue" → view_loans
+   - "ada hutang apa aja" → view_loans
+   - "pinjaman gue apa aja" → view_loans
 
-6. "view_report" — user wants financial report
+6. "view_penalty" — user wants to see late fees/penalties on their loans
+   params: {}
+   Examples:
+   - "ada denda ga" → view_penalty
+   - "cek denda" → view_penalty
+   - "berapa denda gue" → view_penalty
+   - "ada denda dari hutang yang gue punya?" → view_penalty
+   - "denda hutang gue berapa" → view_penalty
+   - "total denda" → view_penalty
+   - "lihat denda" → view_penalty
+   - "denda gue ada ga" → view_penalty
+   - "ada denda gak" → view_penalty
+   - "hitungin denda gue" → view_penalty
+   - "mau liat denda" → view_penalty
+
+7. "view_progress" — user wants to see payoff/debt reduction progress
+   params: {}
+   Examples:
+   - "progres hutang" → view_progress
+   - "progress pelunasan" → view_progress
+   - "sudah lunas berapa" → view_progress
+   - "progres bayar" → view_progress
+   - "udah berapa persen lunas" → view_progress
+   - "kapan lunas" → view_progress
+   - "sisa hutang berapa" → view_progress
+
+8. "view_report" — user wants financial report (income/expense summary)
    params: { "period": "today"|"week"|"month" }
-   Examples: "laporan hari ini", "rekap minggu ini", "report bulan ini"
+   Examples:
+   - "laporan hari ini" → view_report
+   - "rekap minggu ini" → view_report
+   - "report bulan ini" → view_report
+   - "ringkasan keuangan" → view_report
+   - "ringkasan bulan ini" → view_report
+   - "rekap" → view_report
 
-7. "set_target" — user wants to set income target
+9. "set_target" — user wants to set income target
    params: { "amount": number, "period": "daily"|"weekly"|"monthly" }
    Examples: "target hari ini 200rb", "target minggu ini 1.5jt"
 
-8. "view_target" — user wants to check target progress
-   params: {}
-   Examples: "cek target", "progress target"
+10. "view_target" — user wants to check target progress
+    params: {}
+    Examples: "cek target", "progress target"
 
-9. "help" — user needs help/guide
-   params: {}
-   Examples: "bantuan", "cara pakai", "gimana caranya"
+11. "help" — user needs help/guide
+    params: {}
+    Examples: "bantuan", "cara pakai", "gimana caranya", "bisa ngapain aja"
 
-10. "unknown" — cannot determine intent
+12. "unknown" — ONLY use this when the message has absolutely nothing to do with finances, loans, income, expenses, or the bot's features
     params: {}
 
 User message: "${userMessage}"

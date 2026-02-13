@@ -4,15 +4,17 @@
  * Handles edge cases like malformed JSON, missing fields, etc.
  */
 
-import type { IntentResult, IntentName } from "../types/intent";
+import type { IntentResult, IntentType } from "../types/intent";
 
 /** Valid intent names for validation */
-const VALID_INTENTS: IntentName[] = [
+const VALID_INTENTS: IntentType[] = [
   "record_income",
   "record_expense",
   "register_loan",
   "pay_installment",
   "view_loans",
+  "view_penalty",
+  "view_progress",
   "view_report",
   "view_target",
   "set_target",
@@ -46,7 +48,7 @@ export function parseIntentResponse(rawResponse: string): IntentResult {
 
     // Validate intent field
     const intent = parsed["intent"] as string;
-    if (!intent || !VALID_INTENTS.includes(intent as IntentName)) {
+    if (!intent || !VALID_INTENTS.includes(intent as IntentType)) {
       console.error("Invalid intent in AI response:", intent);
       return createUnknownIntent();
     }
@@ -58,10 +60,10 @@ export function parseIntentResponse(rawResponse: string): IntentResult {
 
     // Validate and clean params based on intent
     const rawParams = (parsed["params"] as Record<string, unknown>) ?? {};
-    const params = validateParams(intent as IntentName, rawParams);
+    const params = validateParams(intent as IntentType, rawParams);
 
     return {
-      intent: intent as IntentName,
+      intent: intent as IntentType,
       params,
       confidence,
     };
@@ -75,7 +77,7 @@ export function parseIntentResponse(rawResponse: string): IntentResult {
  * Validate and sanitize params based on the detected intent.
  */
 function validateParams(
-  intent: IntentName,
+  intent: IntentType,
   raw: Record<string, unknown>
 ): Record<string, unknown> {
   switch (intent) {
@@ -132,6 +134,15 @@ function validateParams(
           : "daily",
       };
     }
+
+    // These intents have no params to validate
+    case "view_loans":
+    case "view_penalty":
+    case "view_progress":
+    case "view_target":
+    case "help":
+    case "unknown":
+      return {};
 
     default:
       return raw;

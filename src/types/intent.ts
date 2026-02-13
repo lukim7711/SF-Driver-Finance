@@ -6,12 +6,14 @@
 import type { LateFeeType } from "./loan";
 
 /** All supported intent identifiers */
-export type IntentName =
+export type IntentType =
   | "record_income"
   | "record_expense"
   | "register_loan"
   | "pay_installment"
   | "view_loans"
+  | "view_penalty"
+  | "view_progress"
   | "view_report"
   | "view_target"
   | "set_target"
@@ -78,7 +80,7 @@ export interface GenericParams {
 
 /** The result of AI intent detection */
 export interface IntentResult {
-  intent: IntentName;
+  intent: IntentType;
   params: IncomeParams | ExpenseParams | RegisterLoanParams | PayInstallmentParams | GenericParams;
   confidence: number;
 }

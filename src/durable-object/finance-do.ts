@@ -3,7 +3,7 @@
  * Each user gets their own Durable Object instance (keyed by Telegram user ID).
  * Contains SQLite database for all financial data and conversation state.
  *
- * Phase 3: Loan tracking — registration, payment, dashboard, alerts, penalty calculator, monthly summary, payoff progress.
+ * Phase 3 complete: Loan tracking — registration, payment, dashboard, alerts, penalty calculator, monthly summary, payoff progress.
  */
 
 import type { Env } from "../index";
@@ -137,6 +137,8 @@ export class FinanceDurableObject implements DurableObject {
   /**
    * Handle an incoming text/photo message from the user.
    * Flow: Alerts → Command → Cancel → Conversation State → AI Intent Detection → Route
+   *
+   * IMPORTANT: All natural language goes through AI. Only slash commands bypass AI.
    */
   private async handleMessage(message: TelegramMessage): Promise<void> {
     const chatId = message.chat.id;
@@ -153,7 +155,7 @@ export class FinanceDurableObject implements DurableObject {
     // Step 0: Proactive due date alerts (throttled, fires before normal response)
     await checkAndSendAlerts(token, chatId, this.db, todayDate);
 
-    // Step 1: Handle bot commands
+    // Step 1: Handle bot commands (slash commands are the ONLY non-AI path)
     if (text.startsWith("/")) {
       const parts = text.split(/\s+/);
       const command = parts[0]!.toLowerCase();
@@ -174,24 +176,20 @@ export class FinanceDurableObject implements DurableObject {
           return;
         }
         case "/hutang": {
-          // Shortcut command for loan dashboard — no AI needed
           await handleLoanDashboard(token, chatId, this.db, todayDate);
           return;
         }
         case "/denda": {
-          // Late fee calculator — /denda or /denda Kredivo
           const platformArg = parts.slice(1).join(" ").trim() || undefined;
           await handleLateFeeCalculator(token, chatId, this.db, todayDate, platformArg);
           return;
         }
         case "/ringkasan": {
-          // Monthly obligation summary — /ringkasan or /ringkasan 3 or /ringkasan 2026-03
           const monthArg = parts.slice(1).join(" ").trim() || undefined;
           await handleMonthlySummary(token, chatId, this.db, todayDate, monthArg);
           return;
         }
         case "/progres": {
-          // Payoff progress tracker — overall debt reduction
           await handlePayoffProgress(token, chatId, this.db, todayDate);
           return;
         }
@@ -215,9 +213,7 @@ export class FinanceDurableObject implements DurableObject {
       const action = conversationState.pending_action;
 
       switch (action) {
-        // Loan: mini-wizard for missing fields
         case "loan_fill_missing": {
-          // Guard: detect if user is trying to start a new intent
           if (looksLikeNewIntent(text)) {
             const platform = (conversationState.pending_data.platform as string) || "pinjaman";
             await sendText(
@@ -231,7 +227,6 @@ export class FinanceDurableObject implements DurableObject {
           await handleMissingFieldInput(token, chatId, this.db, text, todayDate);
           return;
         }
-        // Loan: edit mode — select which field
         case "loan_edit_select": {
           if (looksLikeNewIntent(text)) {
             const platform = (conversationState.pending_data.platform as string) || "pinjaman";
@@ -246,7 +241,6 @@ export class FinanceDurableObject implements DurableObject {
           await handleEditSelection(token, chatId, this.db, text);
           return;
         }
-        // Loan: edit mode — input new value
         case "loan_edit_field": {
           if (looksLikeNewIntent(text)) {
             const platform = (conversationState.pending_data.platform as string) || "pinjaman";
@@ -261,7 +255,6 @@ export class FinanceDurableObject implements DurableObject {
           await handleEditFieldInput(token, chatId, this.db, text, todayDate);
           return;
         }
-        // Loan confirmation, payment confirmation, or income/expense: use buttons
         case "confirm_loan":
         case "confirm_income":
         case "confirm_expense":
@@ -296,7 +289,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // Step 6: AI Intent Detection
+    // Step 6: AI Intent Detection — ALL natural language goes through AI
     const neuronCount = getNeuronCount(this.db, todayDate);
     const result = await detectIntent(this.env, text, todayDate, neuronCount);
 
@@ -305,7 +298,7 @@ export class FinanceDurableObject implements DurableObject {
       incrementNeuronCount(this.db, todayDate, 5);
     }
 
-    // Step 7: Route based on detected intent
+    // Step 7: Route based on AI-detected intent
     switch (result.intent) {
       case "record_income": {
         const params = result.params as IncomeParams;
@@ -344,8 +337,17 @@ export class FinanceDurableObject implements DurableObject {
         return;
       }
 
+      case "view_penalty": {
+        await handleLateFeeCalculator(token, chatId, this.db, todayDate);
+        return;
+      }
+
+      case "view_progress": {
+        await handlePayoffProgress(token, chatId, this.db, todayDate);
+        return;
+      }
+
       case "view_report": {
-        // Route view_report to monthly summary
         await handleMonthlySummary(token, chatId, this.db, todayDate);
         return;
       }
@@ -368,14 +370,13 @@ export class FinanceDurableObject implements DurableObject {
           chatId,
           "\ud83e\udd14 Maaf, aku belum mengerti pesanmu.\n\n" +
           "Coba kirim seperti:\n" +
-          "\u2022 <i>\"Dapet 150rb food\"</i> — catat pendapatan\n" +
-          "\u2022 <i>\"Bensin 20rb\"</i> — catat pengeluaran\n" +
-          "\u2022 <i>\"Kredivo 5jt 12 bulan 500rb/bln\"</i> — daftar pinjaman\n" +
-          "\u2022 <i>\"Bayar cicilan Kredivo\"</i> — catat pembayaran\n" +
-          "\u2022 <i>\"Lihat hutang\"</i> — cek pinjaman\n" +
-          "\u2022 /denda — hitung denda\n" +
-          "\u2022 /ringkasan — ringkasan bulan ini\n" +
-          "\u2022 /progres — progres pelunasan\n\n" +
+          "\u2022 <i>\"Dapet 150rb food\"</i> \u2014 catat pendapatan\n" +
+          "\u2022 <i>\"Bensin 20rb\"</i> \u2014 catat pengeluaran\n" +
+          "\u2022 <i>\"Kredivo 5jt 12 bulan 500rb/bln\"</i> \u2014 daftar pinjaman\n" +
+          "\u2022 <i>\"Bayar cicilan Kredivo\"</i> \u2014 catat pembayaran\n" +
+          "\u2022 <i>\"Hutang gue berapa\"</i> \u2014 cek pinjaman\n" +
+          "\u2022 <i>\"Ada denda ga\"</i> \u2014 hitung denda\n" +
+          "\u2022 <i>\"Progres hutang\"</i> \u2014 progres pelunasan\n\n" +
           "Ketik /help untuk panduan lengkap."
         );
         return;
@@ -400,7 +401,7 @@ export class FinanceDurableObject implements DurableObject {
 
     const state = getConversationState(this.db);
 
-    // ── Payment: confirm payment ──
+    // —— Payment: confirm payment ——
     if (data === "payment_confirm_yes") {
       if (state?.pending_action === "confirm_payment") {
         await answerCallbackQuery(token, { callback_query_id: query.id, text: "Mencatat pembayaran..." });
@@ -427,7 +428,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // ── Loan: late fee type selection ──
+    // —— Loan: late fee type selection ——
     if (data.startsWith("loan_late_fee:")) {
       const lateFeeType = data.replace("loan_late_fee:", "") as LateFeeType;
       await answerCallbackQuery(token, { callback_query_id: query.id });
@@ -440,7 +441,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // ── Loan: confirm save ──
+    // —— Loan: confirm save ——
     if (data === "loan_confirm_yes") {
       await answerCallbackQuery(token, { callback_query_id: query.id, text: "Menyimpan..." });
       await editMessageText(token, {
@@ -452,7 +453,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // ── Loan: confirm edit ──
+    // —— Loan: confirm edit ——
     if (data === "loan_confirm_edit") {
       await answerCallbackQuery(token, { callback_query_id: query.id });
       await editMessageText(token, {
@@ -464,7 +465,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // ── Loan: confirm cancel ──
+    // —— Loan: confirm cancel ——
     if (data === "loan_confirm_no") {
       clearConversationState(this.db);
       await answerCallbackQuery(token, { callback_query_id: query.id, text: "Dibatalkan" });
@@ -476,7 +477,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // ── Income/Expense confirmations ──
+    // —— Income/Expense confirmations ——
     switch (data) {
       case "confirm_income_yes": {
         if (state?.pending_action === "confirm_income") {

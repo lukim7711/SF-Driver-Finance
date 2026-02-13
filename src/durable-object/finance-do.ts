@@ -87,102 +87,6 @@ function looksLikeNewIntent(text: string): boolean {
 }
 
 /**
- * Keyword-based pre-router — catches common natural language patterns
- * and routes them directly WITHOUT using AI. Saves Neurons and provides
- * instant response for common queries.
- *
- * Returns the handler function name or null if no match.
- */
-type PreRouteResult =
-  | { route: "view_loans" }
-  | { route: "view_penalty" }
-  | { route: "view_progress" }
-  | { route: "view_report" }
-  | { route: "help" }
-  | null;
-
-function preRouteByKeyword(text: string): PreRouteResult {
-  const lower = text.toLowerCase().trim();
-
-  // ── View Penalty / Denda ──
-  // Matches: "denda", "cek denda", "ada denda ga", "denda gue berapa", "lihat denda", etc.
-  if (
-    lower === "denda" ||
-    (lower.includes("denda") && !lower.includes("daftar") && !lower.includes("tambah"))
-  ) {
-    return { route: "view_penalty" };
-  }
-
-  // ── View Progress ──
-  // Matches: "progres", "progress", "progres hutang", "kapan lunas", etc.
-  if (
-    lower === "progres" ||
-    lower === "progress" ||
-    lower.includes("progres") ||
-    lower.includes("progress") ||
-    (lower.includes("kapan") && lower.includes("lunas")) ||
-    (lower.includes("berapa persen") && lower.includes("lunas"))
-  ) {
-    return { route: "view_progress" };
-  }
-
-  // ── View Loans / Hutang ──
-  // Matches: "hutang", "hutang gue berapa", "cek hutang", "lihat pinjaman", etc.
-  // But NOT "daftar hutang" (register), "hutang kredivo 5jt" (register with details)
-  if (
-    lower === "hutang" ||
-    lower === "pinjaman" ||
-    lower === "cicilan"
-  ) {
-    return { route: "view_loans" };
-  }
-
-  // Multi-word hutang queries that are clearly VIEW (asking, not registering)
-  if (
-    (lower.includes("hutang") || lower.includes("pinjaman") || lower.includes("cicilan")) &&
-    !lower.includes("daftar") && !lower.includes("tambah") && !lower.includes("baru")
-  ) {
-    // If it contains question words or view verbs, route to view_loans
-    const viewIndicators = [
-      "berapa", "berapah", "brp", "apa aja", "apa saja",
-      "lihat", "liat", "cek", "kasih tau", "kasih tahu",
-      "total", "sisa", "status", "list", "ada",
-      "gue", "gw", "gua", "aku", "saya",
-    ];
-    if (viewIndicators.some((v) => lower.includes(v))) {
-      return { route: "view_loans" };
-    }
-  }
-
-  // ── View Report / Ringkasan ──
-  if (
-    lower === "ringkasan" ||
-    lower === "rekap" ||
-    lower === "laporan" ||
-    lower === "report" ||
-    (lower.includes("ringkasan") && !lower.includes("daftar")) ||
-    (lower.includes("rekap") && !lower.includes("daftar")) ||
-    (lower.includes("laporan") && !lower.includes("daftar"))
-  ) {
-    return { route: "view_report" };
-  }
-
-  // ── Help ──
-  if (
-    lower === "bantuan" ||
-    lower === "help" ||
-    lower === "tolong" ||
-    lower.includes("cara pakai") ||
-    lower.includes("gimana caranya") ||
-    lower.includes("bisa ngapain")
-  ) {
-    return { route: "help" };
-  }
-
-  return null;
-}
-
-/**
  * FinanceDurableObject — per-user data storage and message handling.
  */
 export class FinanceDurableObject implements DurableObject {
@@ -232,7 +136,9 @@ export class FinanceDurableObject implements DurableObject {
 
   /**
    * Handle an incoming text/photo message from the user.
-   * Flow: Alerts → Command → Cancel → Conversation State → Pre-Route → AI Intent Detection → Route
+   * Flow: Alerts → Command → Cancel → Conversation State → AI Intent Detection → Route
+   *
+   * IMPORTANT: All natural language goes through AI. Only slash commands bypass AI.
    */
   private async handleMessage(message: TelegramMessage): Promise<void> {
     const chatId = message.chat.id;
@@ -249,7 +155,7 @@ export class FinanceDurableObject implements DurableObject {
     // Step 0: Proactive due date alerts (throttled, fires before normal response)
     await checkAndSendAlerts(token, chatId, this.db, todayDate);
 
-    // Step 1: Handle bot commands
+    // Step 1: Handle bot commands (slash commands are the ONLY non-AI path)
     if (text.startsWith("/")) {
       const parts = text.split(/\s+/);
       const command = parts[0]!.toLowerCase();
@@ -383,29 +289,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // Step 5.5: Keyword pre-router — catch common queries WITHOUT AI
-    const preRoute = preRouteByKeyword(text);
-    if (preRoute) {
-      switch (preRoute.route) {
-        case "view_loans":
-          await handleLoanDashboard(token, chatId, this.db, todayDate);
-          return;
-        case "view_penalty":
-          await handleLateFeeCalculator(token, chatId, this.db, todayDate);
-          return;
-        case "view_progress":
-          await handlePayoffProgress(token, chatId, this.db, todayDate);
-          return;
-        case "view_report":
-          await handleMonthlySummary(token, chatId, this.db, todayDate);
-          return;
-        case "help":
-          await handleHelpCommand(token, chatId);
-          return;
-      }
-    }
-
-    // Step 6: AI Intent Detection (only for messages that need understanding)
+    // Step 6: AI Intent Detection — ALL natural language goes through AI
     const neuronCount = getNeuronCount(this.db, todayDate);
     const result = await detectIntent(this.env, text, todayDate, neuronCount);
 
@@ -414,7 +298,7 @@ export class FinanceDurableObject implements DurableObject {
       incrementNeuronCount(this.db, todayDate, 5);
     }
 
-    // Step 7: Route based on detected intent
+    // Step 7: Route based on AI-detected intent
     switch (result.intent) {
       case "record_income": {
         const params = result.params as IncomeParams;
@@ -486,14 +370,13 @@ export class FinanceDurableObject implements DurableObject {
           chatId,
           "\ud83e\udd14 Maaf, aku belum mengerti pesanmu.\n\n" +
           "Coba kirim seperti:\n" +
-          "\u2022 <i>\"Dapet 150rb food\"</i> — catat pendapatan\n" +
-          "\u2022 <i>\"Bensin 20rb\"</i> — catat pengeluaran\n" +
-          "\u2022 <i>\"Kredivo 5jt 12 bulan 500rb/bln\"</i> — daftar pinjaman\n" +
-          "\u2022 <i>\"Bayar cicilan Kredivo\"</i> — catat pembayaran\n" +
-          "\u2022 <i>\"Hutang gue berapa\"</i> — cek pinjaman\n" +
-          "\u2022 <i>\"Ada denda ga\"</i> — hitung denda\n" +
-          "\u2022 <i>\"Ringkasan bulan ini\"</i> — ringkasan\n" +
-          "\u2022 <i>\"Progres hutang\"</i> — progres pelunasan\n\n" +
+          "\u2022 <i>\"Dapet 150rb food\"</i> \u2014 catat pendapatan\n" +
+          "\u2022 <i>\"Bensin 20rb\"</i> \u2014 catat pengeluaran\n" +
+          "\u2022 <i>\"Kredivo 5jt 12 bulan 500rb/bln\"</i> \u2014 daftar pinjaman\n" +
+          "\u2022 <i>\"Bayar cicilan Kredivo\"</i> \u2014 catat pembayaran\n" +
+          "\u2022 <i>\"Hutang gue berapa\"</i> \u2014 cek pinjaman\n" +
+          "\u2022 <i>\"Ada denda ga\"</i> \u2014 hitung denda\n" +
+          "\u2022 <i>\"Progres hutang\"</i> \u2014 progres pelunasan\n\n" +
           "Ketik /help untuk panduan lengkap."
         );
         return;
@@ -518,7 +401,7 @@ export class FinanceDurableObject implements DurableObject {
 
     const state = getConversationState(this.db);
 
-    // ── Payment: confirm payment ──
+    // —— Payment: confirm payment ——
     if (data === "payment_confirm_yes") {
       if (state?.pending_action === "confirm_payment") {
         await answerCallbackQuery(token, { callback_query_id: query.id, text: "Mencatat pembayaran..." });
@@ -545,7 +428,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // ── Loan: late fee type selection ──
+    // —— Loan: late fee type selection ——
     if (data.startsWith("loan_late_fee:")) {
       const lateFeeType = data.replace("loan_late_fee:", "") as LateFeeType;
       await answerCallbackQuery(token, { callback_query_id: query.id });
@@ -558,7 +441,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // ── Loan: confirm save ──
+    // —— Loan: confirm save ——
     if (data === "loan_confirm_yes") {
       await answerCallbackQuery(token, { callback_query_id: query.id, text: "Menyimpan..." });
       await editMessageText(token, {
@@ -570,7 +453,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // ── Loan: confirm edit ──
+    // —— Loan: confirm edit ——
     if (data === "loan_confirm_edit") {
       await answerCallbackQuery(token, { callback_query_id: query.id });
       await editMessageText(token, {
@@ -582,7 +465,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // ── Loan: confirm cancel ──
+    // —— Loan: confirm cancel ——
     if (data === "loan_confirm_no") {
       clearConversationState(this.db);
       await answerCallbackQuery(token, { callback_query_id: query.id, text: "Dibatalkan" });
@@ -594,7 +477,7 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // ── Income/Expense confirmations ──
+    // —— Income/Expense confirmations ——
     switch (data) {
       case "confirm_income_yes": {
         if (state?.pending_action === "confirm_income") {

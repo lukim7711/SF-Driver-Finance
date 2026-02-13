@@ -9,59 +9,61 @@ import { sendText } from "../telegram/api";
 /** Welcome message shown when user first starts the bot or sends /start */
 const WELCOME_MESSAGE = `\ud83c\udfcd\ufe0f\ud83d\udcb0 <b>Selamat datang di SF Driver Finance!</b>
 
-Bot ini membantu kamu mencatat keuangan sebagai driver ojol:
-
-\ud83d\udcca <b>Fitur Utama:</b>
-\u2022 Catat pendapatan harian (food delivery & SPX)
-\u2022 Catat pengeluaran (bensin, parkir, makan, dll)
-\u2022 Tracking cicilan pinjaman online (pinjol)
-\u2022 Target pendapatan harian/mingguan/bulanan
-\u2022 Baca struk/screenshot via foto (OCR)
+Bot ini membantu kamu mencatat keuangan sebagai driver ojol.
 
 \ud83d\udcac <b>Cara Pakai:</b>
-Cukup kirim pesan biasa seperti:
-\u2022 <i>"Hari ini dapat 150rb food"</i>
-\u2022 <i>"Bensin 20rb"</i>
-\u2022 <i>"Bayar cicilan Shopee Pinjam"</i>
-
-Atau kirim foto struk/screenshot untuk pencatatan otomatis.
+Cukup kirim pesan biasa, bot mengerti bahasa sehari-hari:
+\u2022 <i>"Dapet 150rb food"</i> \u2014 catat pendapatan
+\u2022 <i>"Bensin 20rb"</i> \u2014 catat pengeluaran
+\u2022 <i>"Kredivo 5jt 12 bulan 500rb/bln"</i> \u2014 daftar pinjaman
+\u2022 <i>"Bayar cicilan Kredivo"</i> \u2014 catat pembayaran
+\u2022 <i>"Hutang gue berapa"</i> \u2014 cek pinjaman
+\u2022 <i>"Ada denda ga"</i> \u2014 hitung denda
+\u2022 <i>"Ringkasan bulan ini"</i> \u2014 ringkasan keuangan
+\u2022 <i>"Progres hutang"</i> \u2014 progres pelunasan
 
 Ketik /help untuk panduan lengkap.`;
 
 /** Help message with detailed usage guide */
 const HELP_MESSAGE = `\ud83d\udcd6 <b>Panduan SF Driver Finance</b>
 
+Kirim pesan biasa \u2014 bot mengerti bahasa sehari-hari kamu.
+
 <b>\ud83d\udcdd Catat Pendapatan:</b>
-Kirim pesan seperti:
-\u2022 <i>"Dapat 150rb food"</i>
+\u2022 <i>"Dapet 150rb food"</i>
 \u2022 <i>"SPX hari ini 80rb"</i>
-\u2022 <i>"Income 200k food delivery"</i>
+\u2022 <i>"Gue dapet 200rb dari makanan"</i>
 
 <b>\ud83d\udcb8 Catat Pengeluaran:</b>
-Kirim pesan seperti:
 \u2022 <i>"Bensin 20rb"</i>
 \u2022 <i>"Parkir 5000"</i>
 \u2022 <i>"Makan siang 15rb"</i>
 \u2022 <i>"Rokok 30rb"</i>
+\u2022 <i>"Servis motor 150rb"</i>
 
-<b>\ud83c\udfe6 Pinjaman Online:</b>
-Kirim pesan seperti:
-\u2022 <i>"Daftar pinjaman baru"</i>
-\u2022 <i>"Bayar cicilan Kredivo"</i>
-\u2022 <i>"Lihat semua pinjaman"</i>
+<b>\ud83c\udfe6 Pinjaman / Hutang:</b>
+\u2022 <i>"Kredivo 5jt 12 bulan 500rb/bln"</i> \u2014 daftar baru
+\u2022 <i>"Bayar cicilan Kredivo"</i> \u2014 catat pembayaran
+\u2022 <i>"Hutang gue berapa"</i> \u2014 cek semua pinjaman
+\u2022 <i>"Ada denda ga"</i> \u2014 hitung denda telat
+\u2022 <i>"Progres hutang"</i> \u2014 progres pelunasan
 
-<b>\ud83d\udcf8 Foto/Screenshot:</b>
-Kirim foto struk atau screenshot \u2014 bot akan baca dan catat otomatis.
+<b>\ud83d\udcca Laporan:</b>
+\u2022 <i>"Ringkasan bulan ini"</i> \u2014 ringkasan keuangan
+\u2022 <i>"Rekap minggu ini"</i> \u2014 rekap mingguan
 
-<b>\u2328\ufe0f Perintah:</b>
-/start \u2014 Mulai ulang & pesan selamat datang
-/help \u2014 Tampilkan panduan ini
-/batal \u2014 Batalkan proses yang sedang berjalan
+<b>\u2328\ufe0f Shortcut Perintah:</b>
+/hutang \u2014 Dashboard pinjaman
+/denda \u2014 Hitung denda telat
+/ringkasan \u2014 Ringkasan bulanan
+/progres \u2014 Progres pelunasan
+/batal \u2014 Batalkan proses
+/help \u2014 Panduan ini
 
 <b>\ud83d\udca1 Tips:</b>
-\u2022 Gunakan bahasa sehari-hari, bot mengerti bahasa Indonesia
-\u2022 Ketik \"batal\" kapan saja untuk membatalkan proses
-\u2022 Semua data tersimpan aman per akun kamu`;
+\u2022 Pakai bahasa sehari-hari, bot ngerti bahasa gaul
+\u2022 Ketik \"batal\" kapan saja untuk membatalkan
+\u2022 Slash command (/hutang dll) = shortcut cepat`;
 
 /** Message shown when user cancels an ongoing operation */
 const CANCEL_MESSAGE = `\u2705 Proses dibatalkan. Silakan mulai pesan baru.`;

@@ -1,9 +1,11 @@
 /**
  * Intent Detection Types
- * Defines all possible intents, parameters, and result shapes.
+ * Defines the structure of AI-parsed intent results from user messages.
  */
 
-/** All possible intents the AI can detect */
+import type { LateFeeType } from "./loan";
+
+/** All supported intent identifiers */
 export type IntentType =
   | "record_income"
   | "record_expense"
@@ -13,75 +15,80 @@ export type IntentType =
   | "view_penalty"
   | "view_progress"
   | "view_report"
-  | "set_target"
   | "view_target"
+  | "set_target"
   | "help"
   | "unknown";
 
-/** ShopeeFood or SPX Express income */
+/** Income type: food delivery or SPX package delivery */
 export type IncomeType = "food" | "spx";
 
-/**
- * Expense categories matching Indonesian spending patterns.
- * Each category has a label and common trigger words.
- */
+/** Valid expense categories matching the database CHECK constraint */
 export type ExpenseCategory =
-  | "fuel"            // bensin, BBM
-  | "parking"         // parkir
-  | "meals"           // makan, minum
-  | "cigarettes"      // rokok
-  | "data_plan"       // pulsa, data, kuota
-  | "vehicle_service" // servis, bengkel, ban
-  | "household"       // rumah, belanja
-  | "electricity"     // listrik, air, PLN
-  | "emergency"       // darurat
-  | "other";          // lainnya
+  | "fuel"
+  | "parking"
+  | "meals"
+  | "cigarettes"
+  | "data_plan"
+  | "vehicle_service"
+  | "household"
+  | "electricity"
+  | "emergency"
+  | "other";
 
-/** Params for record_income */
+/** Parameters extracted for income recording */
 export interface IncomeParams {
   amount: number;
   type: IncomeType;
-  note: string | null;
-  date: string;
+  note?: string;
+  date?: string;
 }
 
-/** Params for record_expense */
+/** Parameters extracted for expense recording */
 export interface ExpenseParams {
   amount: number;
   category: ExpenseCategory;
-  note: string | null;
-  date: string;
+  note?: string;
+  date?: string;
 }
 
 /**
- * Params for register_loan.
- * All fields optional because the AI extracts what it can,
- * and the conversation flow handles the rest.
+ * Parameters extracted for loan registration.
+ * All fields optional — AI extracts what it can from natural language.
+ * Missing fields will be filled via mini-wizard or edit mode.
  */
 export interface RegisterLoanParams {
-  platform?: string | null;
-  original_amount?: number | null;
-  total_with_interest?: number | null;
-  total_installments?: number | null;
-  monthly_amount?: number | null;
-  due_day?: number | null;
-  late_fee_type?: string | null;
-  late_fee_value?: number | null;
+  platform?: string;
+  original_amount?: number;
+  total_with_interest?: number;
+  total_installments?: number;
+  monthly_amount?: number;
+  due_day?: number;
+  late_fee_type?: LateFeeType;
+  late_fee_value?: number;
 }
 
-/** Params for pay_installment */
+/** Parameters extracted for loan payment */
 export interface PayInstallmentParams {
   platform: string;
 }
 
-/** Generic intent result from AI parsing */
+/** Generic parameters for other intents */
+export interface GenericParams {
+  [key: string]: unknown;
+}
+
+/** The result of AI intent detection */
 export interface IntentResult {
   intent: IntentType;
-  params: Record<string, unknown>;
+  params: IncomeParams | ExpenseParams | RegisterLoanParams | PayInstallmentParams | GenericParams;
   confidence: number;
 }
 
-/** Intent result with provider tracking */
+/** Which AI provider was used */
+export type AIProvider = "workers_ai" | "deepseek";
+
+/** Extended result including provider info */
 export interface IntentResultWithProvider extends IntentResult {
-  provider: "workers_ai" | "deepseek";
+  provider: AIProvider;
 }

@@ -3,7 +3,7 @@
  * Each user gets their own Durable Object instance (keyed by Telegram user ID).
  * Contains SQLite database for all financial data and conversation state.
  *
- * Phase 3: Loan tracking — registration, payment, dashboard, alerts, penalty calculator, monthly summary, payoff progress.
+ * Phase 3 complete: Loan tracking — registration, payment, dashboard, alerts, penalty calculator, monthly summary, payoff progress.
  */
 
 import type { Env } from "../index";
@@ -87,6 +87,102 @@ function looksLikeNewIntent(text: string): boolean {
 }
 
 /**
+ * Keyword-based pre-router — catches common natural language patterns
+ * and routes them directly WITHOUT using AI. Saves Neurons and provides
+ * instant response for common queries.
+ *
+ * Returns the handler function name or null if no match.
+ */
+type PreRouteResult =
+  | { route: "view_loans" }
+  | { route: "view_penalty" }
+  | { route: "view_progress" }
+  | { route: "view_report" }
+  | { route: "help" }
+  | null;
+
+function preRouteByKeyword(text: string): PreRouteResult {
+  const lower = text.toLowerCase().trim();
+
+  // ── View Penalty / Denda ──
+  // Matches: "denda", "cek denda", "ada denda ga", "denda gue berapa", "lihat denda", etc.
+  if (
+    lower === "denda" ||
+    (lower.includes("denda") && !lower.includes("daftar") && !lower.includes("tambah"))
+  ) {
+    return { route: "view_penalty" };
+  }
+
+  // ── View Progress ──
+  // Matches: "progres", "progress", "progres hutang", "kapan lunas", etc.
+  if (
+    lower === "progres" ||
+    lower === "progress" ||
+    lower.includes("progres") ||
+    lower.includes("progress") ||
+    (lower.includes("kapan") && lower.includes("lunas")) ||
+    (lower.includes("berapa persen") && lower.includes("lunas"))
+  ) {
+    return { route: "view_progress" };
+  }
+
+  // ── View Loans / Hutang ──
+  // Matches: "hutang", "hutang gue berapa", "cek hutang", "lihat pinjaman", etc.
+  // But NOT "daftar hutang" (register), "hutang kredivo 5jt" (register with details)
+  if (
+    lower === "hutang" ||
+    lower === "pinjaman" ||
+    lower === "cicilan"
+  ) {
+    return { route: "view_loans" };
+  }
+
+  // Multi-word hutang queries that are clearly VIEW (asking, not registering)
+  if (
+    (lower.includes("hutang") || lower.includes("pinjaman") || lower.includes("cicilan")) &&
+    !lower.includes("daftar") && !lower.includes("tambah") && !lower.includes("baru")
+  ) {
+    // If it contains question words or view verbs, route to view_loans
+    const viewIndicators = [
+      "berapa", "berapah", "brp", "apa aja", "apa saja",
+      "lihat", "liat", "cek", "kasih tau", "kasih tahu",
+      "total", "sisa", "status", "list", "ada",
+      "gue", "gw", "gua", "aku", "saya",
+    ];
+    if (viewIndicators.some((v) => lower.includes(v))) {
+      return { route: "view_loans" };
+    }
+  }
+
+  // ── View Report / Ringkasan ──
+  if (
+    lower === "ringkasan" ||
+    lower === "rekap" ||
+    lower === "laporan" ||
+    lower === "report" ||
+    (lower.includes("ringkasan") && !lower.includes("daftar")) ||
+    (lower.includes("rekap") && !lower.includes("daftar")) ||
+    (lower.includes("laporan") && !lower.includes("daftar"))
+  ) {
+    return { route: "view_report" };
+  }
+
+  // ── Help ──
+  if (
+    lower === "bantuan" ||
+    lower === "help" ||
+    lower === "tolong" ||
+    lower.includes("cara pakai") ||
+    lower.includes("gimana caranya") ||
+    lower.includes("bisa ngapain")
+  ) {
+    return { route: "help" };
+  }
+
+  return null;
+}
+
+/**
  * FinanceDurableObject — per-user data storage and message handling.
  */
 export class FinanceDurableObject implements DurableObject {
@@ -136,7 +232,7 @@ export class FinanceDurableObject implements DurableObject {
 
   /**
    * Handle an incoming text/photo message from the user.
-   * Flow: Alerts → Command → Cancel → Conversation State → AI Intent Detection → Route
+   * Flow: Alerts → Command → Cancel → Conversation State → Pre-Route → AI Intent Detection → Route
    */
   private async handleMessage(message: TelegramMessage): Promise<void> {
     const chatId = message.chat.id;
@@ -174,24 +270,20 @@ export class FinanceDurableObject implements DurableObject {
           return;
         }
         case "/hutang": {
-          // Shortcut command for loan dashboard — no AI needed
           await handleLoanDashboard(token, chatId, this.db, todayDate);
           return;
         }
         case "/denda": {
-          // Late fee calculator — /denda or /denda Kredivo
           const platformArg = parts.slice(1).join(" ").trim() || undefined;
           await handleLateFeeCalculator(token, chatId, this.db, todayDate, platformArg);
           return;
         }
         case "/ringkasan": {
-          // Monthly obligation summary — /ringkasan or /ringkasan 3 or /ringkasan 2026-03
           const monthArg = parts.slice(1).join(" ").trim() || undefined;
           await handleMonthlySummary(token, chatId, this.db, todayDate, monthArg);
           return;
         }
         case "/progres": {
-          // Payoff progress tracker — overall debt reduction
           await handlePayoffProgress(token, chatId, this.db, todayDate);
           return;
         }
@@ -215,9 +307,7 @@ export class FinanceDurableObject implements DurableObject {
       const action = conversationState.pending_action;
 
       switch (action) {
-        // Loan: mini-wizard for missing fields
         case "loan_fill_missing": {
-          // Guard: detect if user is trying to start a new intent
           if (looksLikeNewIntent(text)) {
             const platform = (conversationState.pending_data.platform as string) || "pinjaman";
             await sendText(
@@ -231,7 +321,6 @@ export class FinanceDurableObject implements DurableObject {
           await handleMissingFieldInput(token, chatId, this.db, text, todayDate);
           return;
         }
-        // Loan: edit mode — select which field
         case "loan_edit_select": {
           if (looksLikeNewIntent(text)) {
             const platform = (conversationState.pending_data.platform as string) || "pinjaman";
@@ -246,7 +335,6 @@ export class FinanceDurableObject implements DurableObject {
           await handleEditSelection(token, chatId, this.db, text);
           return;
         }
-        // Loan: edit mode — input new value
         case "loan_edit_field": {
           if (looksLikeNewIntent(text)) {
             const platform = (conversationState.pending_data.platform as string) || "pinjaman";
@@ -261,7 +349,6 @@ export class FinanceDurableObject implements DurableObject {
           await handleEditFieldInput(token, chatId, this.db, text, todayDate);
           return;
         }
-        // Loan confirmation, payment confirmation, or income/expense: use buttons
         case "confirm_loan":
         case "confirm_income":
         case "confirm_expense":
@@ -296,7 +383,29 @@ export class FinanceDurableObject implements DurableObject {
       return;
     }
 
-    // Step 6: AI Intent Detection
+    // Step 5.5: Keyword pre-router — catch common queries WITHOUT AI
+    const preRoute = preRouteByKeyword(text);
+    if (preRoute) {
+      switch (preRoute.route) {
+        case "view_loans":
+          await handleLoanDashboard(token, chatId, this.db, todayDate);
+          return;
+        case "view_penalty":
+          await handleLateFeeCalculator(token, chatId, this.db, todayDate);
+          return;
+        case "view_progress":
+          await handlePayoffProgress(token, chatId, this.db, todayDate);
+          return;
+        case "view_report":
+          await handleMonthlySummary(token, chatId, this.db, todayDate);
+          return;
+        case "help":
+          await handleHelpCommand(token, chatId);
+          return;
+      }
+    }
+
+    // Step 6: AI Intent Detection (only for messages that need understanding)
     const neuronCount = getNeuronCount(this.db, todayDate);
     const result = await detectIntent(this.env, text, todayDate, neuronCount);
 
@@ -344,8 +453,17 @@ export class FinanceDurableObject implements DurableObject {
         return;
       }
 
+      case "view_penalty": {
+        await handleLateFeeCalculator(token, chatId, this.db, todayDate);
+        return;
+      }
+
+      case "view_progress": {
+        await handlePayoffProgress(token, chatId, this.db, todayDate);
+        return;
+      }
+
       case "view_report": {
-        // Route view_report to monthly summary
         await handleMonthlySummary(token, chatId, this.db, todayDate);
         return;
       }
@@ -372,10 +490,10 @@ export class FinanceDurableObject implements DurableObject {
           "\u2022 <i>\"Bensin 20rb\"</i> — catat pengeluaran\n" +
           "\u2022 <i>\"Kredivo 5jt 12 bulan 500rb/bln\"</i> — daftar pinjaman\n" +
           "\u2022 <i>\"Bayar cicilan Kredivo\"</i> — catat pembayaran\n" +
-          "\u2022 <i>\"Lihat hutang\"</i> — cek pinjaman\n" +
-          "\u2022 /denda — hitung denda\n" +
-          "\u2022 /ringkasan — ringkasan bulan ini\n" +
-          "\u2022 /progres — progres pelunasan\n\n" +
+          "\u2022 <i>\"Hutang gue berapa\"</i> — cek pinjaman\n" +
+          "\u2022 <i>\"Ada denda ga\"</i> — hitung denda\n" +
+          "\u2022 <i>\"Ringkasan bulan ini\"</i> — ringkasan\n" +
+          "\u2022 <i>\"Progres hutang\"</i> — progres pelunasan\n\n" +
           "Ketik /help untuk panduan lengkap."
         );
         return;

@@ -3,7 +3,7 @@
  * Each user gets their own Durable Object instance (keyed by Telegram user ID).
  * Contains SQLite database for all financial data and conversation state.
  *
- * Phase 3: Loan tracking — registration, payment, dashboard, alerts, penalty calculator, monthly summary.
+ * Phase 3: Loan tracking — registration, payment, dashboard, alerts, penalty calculator, monthly summary, payoff progress.
  */
 
 import type { Env } from "../index";
@@ -38,6 +38,7 @@ import { handleLoanDashboard } from "../handlers/dashboard";
 import { checkAndSendAlerts, ensureAlertMetaTable } from "../handlers/alerts";
 import { handleLateFeeCalculator } from "../handlers/late-fee-calc";
 import { handleMonthlySummary } from "../handlers/monthly-summary";
+import { handlePayoffProgress } from "../handlers/payoff-progress";
 import { detectIntent } from "../ai/intent-detector";
 import { ensureNeuronTable, getNeuronCount, incrementNeuronCount } from "../ai/neuron-tracker";
 import { sendText, answerCallbackQuery, editMessageText } from "../telegram/api";
@@ -62,7 +63,7 @@ function getTodayDate(): string {
  */
 const INTENT_KEYWORDS = [
   // loan/debt
-  "hutang", "pinjam", "pinjol", "daftar pinjaman", "cicilan", "bayar", "denda",
+  "hutang", "pinjam", "pinjol", "daftar pinjaman", "cicilan", "bayar", "denda", "progres", "lunas",
   // income
   "dapet", "dapat", "income", "penghasilan",
   // expense
@@ -187,6 +188,11 @@ export class FinanceDurableObject implements DurableObject {
           // Monthly obligation summary — /ringkasan or /ringkasan 3 or /ringkasan 2026-03
           const monthArg = parts.slice(1).join(" ").trim() || undefined;
           await handleMonthlySummary(token, chatId, this.db, todayDate, monthArg);
+          return;
+        }
+        case "/progres": {
+          // Payoff progress tracker — overall debt reduction
+          await handlePayoffProgress(token, chatId, this.db, todayDate);
           return;
         }
         default: {
@@ -339,7 +345,7 @@ export class FinanceDurableObject implements DurableObject {
       }
 
       case "view_report": {
-        // Route view_report to monthly summary for now
+        // Route view_report to monthly summary
         await handleMonthlySummary(token, chatId, this.db, todayDate);
         return;
       }
@@ -368,7 +374,8 @@ export class FinanceDurableObject implements DurableObject {
           "\u2022 <i>\"Bayar cicilan Kredivo\"</i> — catat pembayaran\n" +
           "\u2022 <i>\"Lihat hutang\"</i> — cek pinjaman\n" +
           "\u2022 /denda — hitung denda\n" +
-          "\u2022 /ringkasan — ringkasan bulan ini\n\n" +
+          "\u2022 /ringkasan — ringkasan bulan ini\n" +
+          "\u2022 /progres — progres pelunasan\n\n" +
           "Ketik /help untuk panduan lengkap."
         );
         return;

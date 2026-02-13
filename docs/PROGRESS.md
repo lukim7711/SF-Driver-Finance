@@ -8,7 +8,7 @@
 ## Current Phase: Phase 3 IN PROGRESS 🔧
 
 **Last Updated**: 2026-02-13  
-**Last Session Summary**: F03d Due Date Alerts — proactive reminders on every user message (throttled 1x/6hr). Shows overdue (🔴), today (⚠️), and upcoming (🟡) installments before the normal bot response.
+**Last Session Summary**: F03e Late Fee Calculator — /denda command shows projected penalties for all overdue loans with per-installment breakdown, fee type explanation, subtotals, and actionable tips.
 
 ---
 
@@ -40,7 +40,7 @@
 
 ## Implementation Status
 
-### Source Files (27 files on `feat/f03d-due-date-alerts` branch)
+### Source Files (28 files on `feat/f03e-late-fee-calculator` branch)
 
 #### Entry Point & Config
 
@@ -74,7 +74,7 @@
 
 | File | Status | Description |
 |---|---|---|
-| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, proactive alerts (Step 0), message routing (command → cancel → conversation state → intent guard → AI intent → route), callback query handling. /hutang shortcut command. |
+| `src/durable-object/finance-do.ts` | ✅ Done | Main DO class — DB init, proactive alerts (Step 0), message routing (command → cancel → conversation state → intent guard → AI intent → route), callback query handling. /hutang and /denda shortcut commands. |
 
 #### Database Layer (`src/database/`)
 
@@ -108,7 +108,8 @@
 | `src/handlers/loan.ts` | ✅ Done | Hybrid conversational loan registration: handleLoanFromAI (AI extraction → smart confirmation), handleMissingFieldInput (mini-wizard for gaps), handleLoanConfirmSave/Edit, handleLateFeeTypeCallback, handleEditSelection/EditFieldInput, parseAmount (supports jt/rb/k shorthand) |
 | `src/handlers/payment.ts` | ✅ Done | Installment payment recording: handlePaymentFromAI (fuzzy platform matching → find next unpaid installment → show confirmation with due date + late fee), handlePaymentConfirmed (mark as paid + update loan counter + check if paid_off), calculateLateFee (percent_monthly, percent_daily, fixed) |
 | `src/handlers/dashboard.ts` | ✅ Done | Loan dashboard: handleLoanDashboard — shows all active loans sorted by nearest due date, visual progress bars (█░), urgency icons (🔴🟠🟡🟢), due date countdowns, summary totals (remaining debt, monthly obligation), paid-off loan list, empty state. /hutang shortcut. |
-| `src/handlers/alerts.ts` | ✅ Done | Proactive due date alerts: checkAndSendAlerts (throttled 1x/6hr via _alert_meta table), getAlertableInstallments (overdue + within 3 days), ensureAlertMetaTable. Urgency levels: 🔴 TELAT BAYAR, ⚠️ JATUH TEMPO HARI INI, 🟡 SEGERA JATUH TEMPO. Fires before normal response. |
+| `src/handlers/alerts.ts` | ✅ Done | Proactive due date alerts: checkAndSendAlerts (throttled 1x/6hr via _alert_meta table), getAlertableInstallments (overdue + within 3 days), ensureAlertMetaTable. Urgency levels: 🔴 TELAT BAYAR, ⚠️ JATUH TEMPO HARI INI, 🟡 SEGERA JATUH TEMPO. |
+| `src/handlers/late-fee-calc.ts` | ✅ Done | Late fee calculator: handleLateFeeCalculator — /denda or /denda [platform]. Per-installment breakdown (days late, pokok, denda, total), fee type explanation, subtotals per loan, grand total across all loans. Exported calculateLateFee for reuse. Actionable tips. |
 
 ### Features Implementation
 
@@ -124,7 +125,7 @@
 | F03b | Record Installment Payment | ✅ Done | 3 | `handlers/payment.ts`, `database/loan.ts` (markInstallmentPaid) |
 | F03c | View Loan Dashboard | ✅ Done | 3 | `handlers/dashboard.ts`, `durable-object/finance-do.ts` (/hutang) |
 | F03d | Due Date Alerts | ✅ Done | 3 | `handlers/alerts.ts`, `durable-object/finance-do.ts` (Step 0) |
-| F03e | Late Fee Calculator | 🔲 Not Started | 3 | — |
+| F03e | Late Fee Calculator | ✅ Done | 3 | `handlers/late-fee-calc.ts`, `durable-object/finance-do.ts` (/denda) |
 | F03f | Monthly Obligation Summary | 🔲 Not Started | 3 | — |
 | F03g | Payoff Progress | 🔲 Not Started | 3 | — |
 | F04 | Income Targets | 🔲 Not Started | 4 | — |
@@ -153,9 +154,10 @@
 - **CI runs twice per push to PR branch**: GitHub Actions fires both `push` and `pull_request` events. Can optimize later by restricting `push` trigger to `main` only.
 - **Loan UX design**: Conversational-first (AI extraction → confirm) is much better than step-by-step wizards for chat-based interfaces. Users provide most info in one message.
 - **Payment recording**: Fuzzy platform name matching (case-insensitive substring) works well for natural language ("bayar shopee" matches "Shopee Pinjam").
-- **Late fee calculation**: Built directly into payment handler — calculates on-the-fly based on days overdue and loan's late_fee_type.
+- **Late fee calculation**: Duplicated in `payment.ts` (private) and `late-fee-calc.ts` (exported). Could refactor to shared utility later.
 - **Dashboard**: `/hutang` shortcut command bypasses AI — saves Neurons for a purely read-only operation.
 - **Alert throttling**: Using `_alert_meta` key-value table with timestamp. 6-hour cooldown prevents spam while ensuring driver sees warnings at least twice per active day.
+- **Penalty calculator**: `/denda` also bypasses AI. Shows projected penalties based on current date — good for drivers deciding which loan to pay first.
 
 ---
 
@@ -179,8 +181,8 @@ Phased approach — build foundation first, then layer features:
 9. ~~**F03b — Record Payment**~~ → ✅ Done (fuzzy platform match + late fee calc + auto paid_off)
 10. ~~**F03c — Loan Dashboard**~~ → ✅ Done (progress bars, urgency icons, summary totals, /hutang command)
 11. ~~**F03d — Due Date Alerts**~~ → ✅ Done (proactive alerts, throttled 1x/6hr, 3 urgency levels)
-12. **F03e — Late Fee Calculator** → Standalone "hitung denda" command ← NEXT
-13. **F03f — Monthly Summary** → Aggregate obligations
+12. ~~**F03e — Late Fee Calculator**~~ → ✅ Done (/denda command, per-installment breakdown, grand totals)
+13. **F03f — Monthly Summary** → Aggregate obligations ← NEXT
 14. **F03g — Payoff Progress** → Track overall progress
 
 ### Phase 4: Advanced
@@ -207,9 +209,9 @@ Phased approach — build foundation first, then layer features:
 
 **Continue Phase 3: Loan Tracking**
 
-1. **F03e — Late Fee Calculator**: "hitung denda Kredivo" → show projected penalty if paid today
-2. **F03f — Monthly Summary**: Aggregate all active loan obligations for the current month
-3. **F03g — Payoff Progress**: Overall debt reduction tracker
+1. **F03f — Monthly Summary**: "ringkasan bulan ini" → aggregate all loan obligations for current month
+2. **F03g — Payoff Progress**: Overall debt reduction tracker with percentage
+3. Consider combining F03f + F03g into a single comprehensive summary view
 
 ---
 
@@ -230,4 +232,5 @@ Phased approach — build foundation first, then layer features:
 | 2026-02-13 | #11 | **F03a Register Loan complete**: Redesigned 7-step wizard → hybrid conversational flow. AI extracts loan params from natural language → smart confirmation → mini-wizard for missing fields only. Edit mode (pick 1-7). Intent guard for active wizard. Deployed via PR #5 → PR #6 → PR #7 |
 | 2026-02-13 | #12 | **F03b Record Payment complete**: Installment payment recording with fuzzy platform matching, late fee calculation (percent_monthly/daily/fixed), auto loan status update to paid_off. Deployed via PR #8 |
 | 2026-02-13 | #13 | **F03c Loan Dashboard complete**: Visual dashboard with progress bars, urgency icons, due date countdowns, summary totals. /hutang shortcut command. Deployed via PR #9 |
-| 2026-02-13 | #14 | **F03d Due Date Alerts complete**: Proactive alerts on every message (throttled 1x/6hr via _alert_meta table). 3 urgency levels: 🔴 TELAT BAYAR, ⚠️ JATUH TEMPO HARI INI, 🟡 SEGERA JATUH TEMPO. Fires at Step 0 before normal response. New handler: `alerts.ts`. |
+| 2026-02-13 | #14 | **F03d Due Date Alerts complete**: Proactive alerts on every message (throttled 1x/6hr via _alert_meta table). 3 urgency levels. Deployed via PR #10 |
+| 2026-02-13 | #15 | **F03e Late Fee Calculator complete**: /denda command — per-installment penalty breakdown, fee type display, subtotals per loan, grand total across all loans, actionable tips. /denda [platform] for specific loan. New handler: `late-fee-calc.ts`. |
